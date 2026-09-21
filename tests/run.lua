@@ -899,7 +899,7 @@ local function contextFixture()
     return instance, events, cast, tick
 end
 
-test('target selection shows both due glows outside combat and clearing hides them', function()
+test('target selection shows only the due seal glow outside combat', function()
     local instance, events = contextFixture()
     equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, false)
@@ -908,7 +908,7 @@ test('target selection shows both due glows outside combat and clearing hides th
     unitPresence.target = true
     events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
 
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, true)
 
     unitPresence.target = nil
@@ -917,14 +917,14 @@ test('target selection shows both due glows outside combat and clearing hides th
     equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, false)
 end)
-test('mouseover shows both due glows and polling handles mouse departure', function()
+test('mouseover shows only the due seal glow and polling handles departure', function()
     local instance, events, cast, tick = contextFixture()
     equal(events.events.UPDATE_MOUSEOVER_UNIT, true)
 
     unitPresence.mouseover = true
     events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
 
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, true)
 
     unitPresence.mouseover = nil
@@ -944,7 +944,7 @@ test('target and mouseover do not bypass cooldowns seal timer or toggles', funct
     equal(overlays[ActionButton2].visible, false)
 
     tick(127)
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, true)
     instance.Config.Set('cooldownGlowEnabled', false)
     instance.Config.Set('sealGlowEnabled', false)
@@ -962,7 +962,7 @@ test('losing target retains mouseover visibility and combat needs neither', func
 
     events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
 
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, true)
     playerInCombat = true
     unitPresence = {}
@@ -982,7 +982,7 @@ test('restricted target existence is ignored while readable mouseover still work
     unitPresence.mouseover = true
     events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
 
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, true)
     unitPresence = {}
 end)
@@ -998,22 +998,22 @@ test('friendly target and mouseover never enable glows outside combat', function
     equal(overlays[ActionButton2].visible, false)
     unitPresence = {}
 end)
-test('attackable mouseover enables glows even with a friendly selected target', function()
+test('attackable mouseover enables seal glow even with a friendly selected target', function()
     local instance, events = contextFixture()
     unitPresence = { target = true, mouseover = true }
     unitAttackable.target = false
 
     events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
 
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, true)
     unitPresence = {}
 end)
-test('losing attackability hides both glows on polling', function()
+test('losing attackability hides seal glow on polling', function()
     local instance, events, cast, tick = contextFixture()
     unitPresence.target = true
     events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
-    equal(overlays[button].visible, true)
+    equal(overlays[button].visible, false)
 
     unitAttackable.target = false
     tick(101)
@@ -1031,6 +1031,22 @@ test('restricted attackability is not treated as permission to show a glow', fun
 
     equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, false)
+    unitPresence = {}
+end)
+
+test('combat exit hides Holy Strike but retains due seal with attackable target', function()
+    local instance, events = contextFixture()
+    unitPresence.target = true
+    playerInCombat = true
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, true)
     unitPresence = {}
 end)
 

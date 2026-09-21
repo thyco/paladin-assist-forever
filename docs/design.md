@@ -16,7 +16,7 @@ A native AddOns settings category exposes an enabled-by-default cooldown glow ch
 
 ## Combat-only glow (0.2.1)
 
-Both features use `Client.HasGlowContext()`: combat, an attackable target, or an attackable mouseover unit. Holy Strike additionally requires either spell to be ready. Combat entry and exit events trigger immediate refreshes. Cooldown event snapshots continue updating outside combat. The shared visibility check reads no identity or aura data. Target/mouseover events refresh immediately, and polling handles mouseover departure.
+Holy Strike requires combat and either spell to be ready. Only the seal reminder uses `Client.HasGlowContext()`: combat, an attackable target, or an attackable mouseover unit. Combat entry and exit events trigger immediate refreshes. Cooldown event snapshots continue updating outside combat. The shared visibility check reads no identity or aura data. Target/mouseover events refresh immediately, and polling handles mouseover departure.
 
 ## LibCustomGlow renderer (0.3.0)
 

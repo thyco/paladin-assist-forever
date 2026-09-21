@@ -28,7 +28,7 @@ function panel:Initialize()
         "PaladinAssistForever_CooldownGlowEnabled",
         "Holy strike glow on Holy strike and judgement", Settings.VarType.Boolean)
     Settings.CreateCheckbox(self.category, enabled,
-        "Glow the Holy Strike button in combat or with an attackable target/mouseover unit, when either Holy Strike or Judgement is off cooldown. Applies to paladins only. Saved for all characters.")
+        "Glow the Holy Strike button only in combat, when either Holy Strike or Judgement is off cooldown. Applies to paladins only. Saved for all characters.")
 
     local native = registerSetting(self.category, "glowNativeColor",
         "PaladinAssistForever_GlowNativeColor", "Use Blizzard native glow", Settings.VarType.Boolean)

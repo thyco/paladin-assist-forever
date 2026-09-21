@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.5.1 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike while you are **in combat or have an attackable target/mouseover unit** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.5.2 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.5.1.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.5.2.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -31,7 +31,7 @@ Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 - To customize the color, uncheck **Use Blizzard native glow**, then click **Custom glow color** to open the color picker. Changes update active glows immediately. Cancel restores the previous custom color.
 - You can choose a custom color while native mode is enabled; it is saved for later. Switching back to native retains that custom color.
 - Unchecking the feature toggle immediately removes this feature's glow and stops its cooldown/button checks.
-- Checking the feature toggle again immediately discovers the current macro position and reevaluates readiness. Both reminders can show in combat or while your target or mouseover is a unit you can attack, including attackable neutral units and unit-frame mouseovers. Outside combat they hide when neither is attackable. Target changes refresh immediately; mouseover departure is also checked every 0.1 seconds.
+- Checking the feature toggle again immediately discovers the current macro position and reevaluates readiness. The Holy Strike/Judgement glow appears only in combat. The seal reminder also appears outside combat when your target or mouseover is a unit you can attack, including attackable neutral units and unit-frame mouseovers. Target changes refresh immediately; mouseover departure is also checked every 0.1 seconds.
 - All preferences are saved account-wide across reloads and logouts. Existing installations default to enabled on upgrade.
 - The panel is available on all characters; the glow feature still runs only for paladins.
 
@@ -44,7 +44,7 @@ In `/paf config`, enable **Seal refresh reminder** (enabled by default), then ch
 - This is a refresh estimate, not an aura check: it never reads buff data and cannot detect an early dispel or manual removal. After login/reload or death, it assumes a refresh is due until it observes another seal cast.
 - Successful cast events may themselves contain restricted values. Unreadable unit/spell data is ignored safely; such a cast cannot restart the timer. `/paf` reports ignored restricted casts for troubleshooting. Verify successful seal casts hide the reminder in your client, including in combat.
 - Selection refers to a physical button position, not a spell or key binding. It stays on that position when you change bar pages or move spells. Only that selected, visible button is highlighted; it is up to you to keep your seal there. No binding or action is changed.
-- If both reminders target the same button, the seal color takes priority while a seal refresh is due. When you cast a seal, the Holy Strike glow resumes if either tracked attack is ready.
+- If both reminders target the same button, the seal color takes priority while a seal refresh is due. When you cast a seal, the Holy Strike glow resumes if you are in combat and either tracked attack is ready.
 - English spell names are supported across ranks: Righteousness, the Crusader, Command, Justice, Light, Wisdom, Fury, Blood, the Martyr, Vengeance and Corruption, all prefixed with “Seal of”. No cast is executed by the addon.
 
 ## Diagnostics
@@ -118,9 +118,9 @@ In-game acceptance checks:
 
 - Enable Lua errors with `/console scriptErrors 1`, then `/reload`.
 - In combat, check that each newly activated glow flashes once, then loops without repeated startup flashes.
-- With both spells ready outside combat and no target/mouseover, confirm there is no glow. Select an attackable target or mouse over an attackable unit and confirm the glow appears. Clear both and confirm it disappears. In combat it should remain eligible even with neither.
+- With both attacks ready outside combat, confirm Holy Strike stays dark even with an attackable target or mouseover. Enter combat and confirm it glows; leave combat and confirm it clears. A due seal reminder should still glow outside combat with an attackable target/mouseover, and clear when neither qualifies.
 - Put both spells on cooldown; confirm the glow disappears. When either finishes first, confirm the same button glows again.
-- In combat, check with no target, out of range and without enough mana. After combat, with no target or mouseover unit, the glow must remain hidden regardless of readiness.
+- In combat, check with no target, out of range and without enough mana. After combat the Holy Strike glow must remain hidden regardless of target, mouseover or readiness.
 - Trigger only the global cooldown while both tracked abilities are otherwise ready; confirm no flicker where the client exposes the distinction.
 - Move the macro, change bar pages and reload; confirm no leftover glow on its old slot.
 - Log into a non-paladin; confirm no feature updates or glow.

@@ -31,7 +31,8 @@ function feature:Refresh(discover, cooldownEvent)
     end
 
     local ready = addon.Cooldowns.AnyReady(self.spells, cooldownEvent)
-    local showGlow = addon.Client.HasGlowContext() and ready or false
+    local combat = UnitAffectingCombat("player")
+    local showGlow = addon.Client.Readable(combat) and combat and ready or false
 
     for _, button in ipairs(self.buttons) do
         addon.Glow.Set(button, self.owner, showGlow)
