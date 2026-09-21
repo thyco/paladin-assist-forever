@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.4.0 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike only while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.5.1 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike while you are **in combat or have an attackable target/mouseover unit** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.4.0.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.5.1.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -31,9 +31,21 @@ Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 - To customize the color, uncheck **Use Blizzard native glow**, then click **Custom glow color** to open the color picker. Changes update active glows immediately. Cancel restores the previous custom color.
 - You can choose a custom color while native mode is enabled; it is saved for later. Switching back to native retains that custom color.
 - Unchecking the feature toggle immediately removes this feature's glow and stops its cooldown/button checks.
-- Checking the feature toggle again immediately discovers the current macro position and reevaluates readiness. The glow stays hidden outside combat, appears on entering combat if either spell is ready, and clears immediately when combat ends.
+- Checking the feature toggle again immediately discovers the current macro position and reevaluates readiness. Both reminders can show in combat or while your target or mouseover is a unit you can attack, including attackable neutral units and unit-frame mouseovers. Outside combat they hide when neither is attackable. Target changes refresh immediately; mouseover departure is also checked every 0.1 seconds.
 - All preferences are saved account-wide across reloads and logouts. Existing installations default to enabled on upgrade.
 - The panel is available on all characters; the glow feature still runs only for paladins.
+
+## Seal refresh reminder
+
+In `/paf config`, enable **Seal refresh reminder** (enabled by default), then choose **Seal reminder action bar** and **Seal reminder button**. The default is **Not selected**, so nothing extra glows until you choose the target. **Seal reminder glow color** defaults to red and is independent of the Holy Strike color.
+
+- A successful player seal cast starts a 27-second timer. At 27 seconds the chosen button glows, reminding you to refresh before the assumed 30-second buff expires. Casting any recognized seal again resets it immediately.
+- The glow appears in combat or with an attackable target/mouseover unit. Casts while the reminder is hidden or disabled still update its timer. Losing the visibility condition hides the glow without resetting the timer.
+- This is a refresh estimate, not an aura check: it never reads buff data and cannot detect an early dispel or manual removal. After login/reload or death, it assumes a refresh is due until it observes another seal cast.
+- Successful cast events may themselves contain restricted values. Unreadable unit/spell data is ignored safely; such a cast cannot restart the timer. `/paf` reports ignored restricted casts for troubleshooting. Verify successful seal casts hide the reminder in your client, including in combat.
+- Selection refers to a physical button position, not a spell or key binding. It stays on that position when you change bar pages or move spells. Only that selected, visible button is highlighted; it is up to you to keep your seal there. No binding or action is changed.
+- If both reminders target the same button, the seal color takes priority while a seal refresh is due. When you cast a seal, the Holy Strike glow resumes if either tracked attack is ready.
+- English spell names are supported across ranks: Righteousness, the Crusader, Command, Justice, Light, Wisdom, Fury, Blood, the Martyr, Vengeance and Corruption, all prefixed with “Seal of”. No cast is executed by the addon.
 
 ## Diagnostics
 
@@ -51,20 +63,21 @@ The library copy is the same minor version 25 bundled with DK Force. See `Paladi
 
 ## Reuse and extension
 
-Every file receives the private addon namespace through `local _, addon = ...`. Services contain no paladin spell names. Only `Features/HolyStrikeGlow.lua` defines the current spell-specific rule.
+Every file receives the private addon namespace through `local _, addon = ...`. Services contain no paladin spell names. Spell-specific rules live in `Features/HolyStrikeGlow.lua` and `Features/SealReminder.lua`.
 
 | Module | Reusable interface | Responsibility |
 | --- | --- | --- |
-| `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)` | Adapts modern APIs and available legacy equivalents; isolates client changes. |
+| `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)`, `HasGlowContext()` | Adapts modern APIs and available legacy equivalents; isolates client changes. |
 | `Services/Macros.lua` | `Casts(body, spellName)` | Exact, case-insensitive matching of simple cast lines; never executes macros. |
-| `Services/Buttons.lua` | `All()`, `FindSpell(spellName)` | Enumerates default buttons and resolves current slots, including macros and paging. |
-| `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active)`, `ClearOwner(owner)`, `Configure(options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
+| `Services/Buttons.lua` | `All()`, `FindSpell(spellName)`, `Bars()`, `Selected(bar, index)` | Enumerates default buttons and resolves current slots, including macros and paging. |
+| `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active)`, `ClearOwner(owner)`, `Configure(options)`, `ConfigureOwner(owner, options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
 | `Services/Cooldowns.lua` | `IsReady(spellID, cooldownEvent)`, `AnyReady(spellIDs, cooldownEvent)`, `Invalidate(spellID)` | Evaluates ordinary, non-charge spell cooldowns. `IsReady` returns true, false, or nil for unavailable data; `AnyReady` returns a boolean. |
+| `Services/Timers.lua` | `New()` → `Start(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
 | `Services/Config.lua` | `Initialize()`, `Get(key)`, `GetDefault(key)`, `GetColor(key)`, `Set(key, value)`, `Subscribe(listener)` | Saves typed defaults and preferences; notifies consumers when a setting changes. |
 | `SettingsPanel.lua` | `Initialize()`, `Open()` | Registers the native AddOns category, feature toggle, native-color toggle and custom color picker. |
-| `Core.lua` | `RegisterFeature(feature)` | Starts paladin features and calls `Refresh(discover, cooldownEvent)` only when their optional `settingKey` is enabled. Calls `Stop()` immediately when disabled. |
+| `Core.lua` | `RegisterFeature(feature)` | Starts paladin features and calls `Refresh(discover, cooldownEvent)` only when their optional `settingKey` is enabled. Calls `Stop()` immediately when disabled. Optional `ApplySettings()` configures feature appearance; `OnEvent(event, ...)` continues observing events even while disabled. |
 
-`Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. Saved preferences stay in Config; Glow remains independent of the settings panel.
+`Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. Use `Glow.ConfigureOwner(owner, { color = ..., priority = ... })` for independent feature colors; higher priority wins on shared buttons, and owner names break ties deterministically. Saved preferences stay in Config; Glow remains independent of the settings panel.
 
 A future feature can reuse discovery and rendering without copying them:
 
@@ -105,14 +118,16 @@ In-game acceptance checks:
 
 - Enable Lua errors with `/console scriptErrors 1`, then `/reload`.
 - In combat, check that each newly activated glow flashes once, then loops without repeated startup flashes.
-- With both spells ready outside combat, confirm there is no glow. Enter combat and confirm the Holy Strike macro button glows. Leave combat and confirm the glow disappears immediately.
+- With both spells ready outside combat and no target/mouseover, confirm there is no glow. Select an attackable target or mouse over an attackable unit and confirm the glow appears. Clear both and confirm it disappears. In combat it should remain eligible even with neither.
 - Put both spells on cooldown; confirm the glow disappears. When either finishes first, confirm the same button glows again.
-- In combat, check with no target, out of range and without enough mana. After combat the glow must remain hidden regardless of readiness.
+- In combat, check with no target, out of range and without enough mana. After combat, with no target or mouseover unit, the glow must remain hidden regardless of readiness.
 - Trigger only the global cooldown while both tracked abilities are otherwise ready; confirm no flicker where the client exposes the distinction.
 - Move the macro, change bar pages and reload; confirm no leftover glow on its old slot.
 - Log into a non-paladin; confirm no feature updates or glow.
 - Open `/paf config`; disable the glow while it is visible and confirm it disappears immediately. Reload and confirm the checkbox remains off. Enable it again and confirm readiness is reflected immediately.
 - With a glow active, uncheck **Use Blizzard native glow**, choose a custom color, and confirm it changes immediately without repeating the flash. Cancel a color change, restore native mode, and reload to verify saved appearance.
+- Choose your seal bar/button, cast a seal out of combat, enter combat, and confirm only the selected button turns red at 27 seconds. Cast another seal and confirm the glow disappears immediately. Repeat the cast in combat to check event visibility in your client.
+- Change the selected button and color, disable/re-enable the reminder, and confirm no leftover glow. Check the shared-button priority if you deliberately select the Holy Strike button.
 - Report `/paf` output and any Lua error if a beta API differs.
 
 ## API references
@@ -127,3 +142,5 @@ In-game acceptance checks:
 - [Default action-bar combat visibility handling](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_ActionBar/Shared/ActionBar.lua)
 
 - [LibCustomGlow upstream](https://github.com/Stanzilla/LibCustomGlow)
+
+- [Successful spell-cast event contract](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)

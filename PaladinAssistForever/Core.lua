@@ -41,6 +41,10 @@ function addon:ApplySettings()
     self.Glow.Configure({ color = color })
 
     for _, feature in ipairs(self.features) do
+        if feature.ApplySettings then
+            feature:ApplySettings()
+        end
+
         if not self:IsFeatureEnabled(feature) and feature.Stop then
             feature:Stop()
         end
@@ -73,6 +77,19 @@ function addon:Refresh(discover, cooldownEvent)
     for _, feature in ipairs(self.features) do
         if self:IsFeatureEnabled(feature) then
             feature:Refresh(discover, cooldownEvent)
+        end
+    end
+end
+
+-- Observation continues while a feature's visual reminder is disabled.
+function addon:OnEvent(event, ...)
+    if not self.started then
+        return
+    end
+
+    for _, feature in ipairs(self.features) do
+        if feature.OnEvent then
+            feature:OnEvent(event, ...)
         end
     end
 end

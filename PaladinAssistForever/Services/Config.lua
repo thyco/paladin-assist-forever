@@ -6,6 +6,10 @@ local defaults = {
     cooldownGlowEnabled = true,
     glowNativeColor = true,
     glowColor = "ff00e633",
+    sealGlowEnabled = true,
+    sealBar = 0,
+    sealButton = 1,
+    sealGlowColor = "ffff0000",
 }
 local values
 local listeners = {}
@@ -15,15 +19,21 @@ local function validValue(key, value)
         return false
     end
 
-    if key == "glowColor" then
+    if key == "glowColor" or key == "sealGlowColor" then
         return #value == 8 and value:match("^%x+$") ~= nil
+    end
+
+    if key == "sealBar" then
+        return value >= 0 and value <= 8 and value == math.floor(value)
+    elseif key == "sealButton" then
+        return value >= 1 and value <= 12 and value == math.floor(value)
     end
 
     return true
 end
 
 local function normalize(key, value)
-    if key == "glowColor" then
+    if key == "glowColor" or key == "sealGlowColor" then
         -- The native RGB picker can return a zero alpha byte. Glow opacity is
         -- always opaque; only RGB is configurable.
         return "ff" .. value:sub(3):lower()

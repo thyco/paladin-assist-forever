@@ -16,7 +16,7 @@ A native AddOns settings category exposes an enabled-by-default cooldown glow ch
 
 ## Combat-only glow (0.2.1)
 
-The Holy Strike feature requests its glow only while `UnitAffectingCombat("player")` is true and either spell is ready. Combat entry and exit events trigger immediate refreshes. Cooldown event snapshots continue updating outside combat. Shared glow and cooldown services remain independent of this feature-specific visibility rule.
+Both features use `Client.HasGlowContext()`: combat, an attackable target, or an attackable mouseover unit. Holy Strike additionally requires either spell to be ready. Combat entry and exit events trigger immediate refreshes. Cooldown event snapshots continue updating outside combat. The shared visibility check reads no identity or aura data. Target/mouseover events refresh immediately, and polling handles mouseover departure.
 
 ## LibCustomGlow renderer (0.3.0)
 
@@ -25,3 +25,12 @@ Bundle the LibStub minor 2 and LibCustomGlow minor 25 files from DK Force withou
 ## Glow appearance settings (0.4.0)
 
 Rename the feature toggle to the requested "Holy strike glow on Holy strike and judgement". Match DK Force's single proc style with a Use Blizzard native glow toggle (default true) and a custom RGB color picker. Preserve existing enabled preferences and saved custom colors. Color selection does not silently toggle native mode, so cancel remains predictable. Store validated opaque ARGB hex strings compatible with native Settings color swatches. Core translates saved preferences into generic Glow.Configure options; the renderer updates active effects in place without restarting their initial animation.
+
+
+## Seal reminder (0.5.0)
+
+A second independently enabled feature tracks readable successful player seal casts, across ranks by English spell name. Its session timer becomes due at 27 seconds, ahead of the user-specified 30-second duration. It does not query auras or infer restricted data. Unknown initial state after reload and death are treated as due; early dispels cannot be detected. Secret successful-cast payloads are skipped and counted in diagnostics.
+
+Selection is one physical default bar/button, configured through two native dropdowns. No target is selected by default; the feature defaults enabled and red. It shows in combat or with an attackable target/mouseover unit, and observes casts while disabled or hidden. Shared overlay ownership now supports per-owner tint and deterministic priority: seal reminder priority 10 overrides the default Holy Strike style until the seal request clears.
+
+Reusable components: `Timers.New` returns independent deadline timers; `Buttons.Selected` resolves a physical position; `Glow.ConfigureOwner` assigns feature appearance; `Core.OnEvent` forwards observations separately from enabled-only rendering. Only player successful-cast events are subscribed; existing bar discovery cadence is retained.

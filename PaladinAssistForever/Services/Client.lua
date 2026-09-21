@@ -92,3 +92,24 @@ function Client.Action(slot)
 
     return { kind = kind, id = id, body = body }
 end
+
+-- Use attackability rather than reaction: neutral units that the player can
+-- attack also qualify. Check readability before branching on client values.
+function Client.CanAttack(unit)
+    local exists = UnitExists(unit)
+    if not Client.Readable(exists) or not exists then
+        return false
+    end
+
+    local attackable = UnitCanAttack("player", unit)
+    return Client.Readable(attackable) and not not attackable
+end
+
+function Client.HasGlowContext()
+    local combat = UnitAffectingCombat("player")
+    if Client.Readable(combat) and combat then
+        return true
+    end
+
+    return Client.CanAttack("target") or Client.CanAttack("mouseover")
+end

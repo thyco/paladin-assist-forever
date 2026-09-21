@@ -8,7 +8,7 @@ local discoveryEvents = {
 }
 
 frame:RegisterEvent("PLAYER_LOGIN")
-frame:SetScript("OnEvent", function(self, event)
+frame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
         addon.Config.Initialize()
         addon.SettingsPanel:Initialize()
@@ -19,6 +19,10 @@ frame:SetScript("OnEvent", function(self, event)
         end
 
         self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+        self:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+        self:RegisterEvent("PLAYER_DEAD")
+        self:RegisterEvent("PLAYER_TARGET_CHANGED")
+        self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
         for _, name in ipairs(discoveryEvents) do
             self:RegisterEvent(name)
         end
@@ -41,11 +45,21 @@ frame:SetScript("OnEvent", function(self, event)
         return
     end
 
+    addon:OnEvent(event, ...)
+
     if event == "PLAYER_REGEN_ENABLED" then
         addon:PrepareButtons()
     end
 
-    addon:Refresh(event ~= "SPELL_UPDATE_COOLDOWN", event == "SPELL_UPDATE_COOLDOWN")
+    local discover = false
+    for _, name in ipairs(discoveryEvents) do
+        if event == name then
+            discover = true
+            break
+        end
+    end
+
+    addon:Refresh(discover, event == "SPELL_UPDATE_COOLDOWN")
 end)
 
 SLASH_PALADINASSISTFOREVER1 = "/paf"
@@ -57,7 +71,7 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
     end
 
     local version, build, _, interface = GetBuildInfo()
-    print("Paladin Assist Forever 0.4.0 | client " .. version .. " (" .. build .. ") | interface " .. interface)
+    print("Paladin Assist Forever 0.5.1 | client " .. version .. " (" .. build .. ") | interface " .. interface)
     if not addon.started then
         print("Paladin features are inactive on this character.")
         return
@@ -65,6 +79,12 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
 
     print("Cooldown glow: " .. (addon.Config.Get("cooldownGlowEnabled") and "enabled" or "disabled") .. " | /paf config to configure")
     addon:Refresh(true)
+    local seal = addon.SealReminder
+    local target = addon.Buttons.Bars()[addon.Config.Get("sealBar")]
+    print("Seal reminder: " .. (addon.Config.Get("sealGlowEnabled") and "enabled" or "disabled")
+        .. " | target: " .. (target and (target .. " / " .. addon.Config.Get("sealButton")) or "not selected")
+        .. " | refresh due in: " .. string.format("%.1fs", seal.timer:Remaining())
+        .. " | ignored restricted casts: " .. seal.ignoredRestrictedCasts)
     print("Holy Strike buttons found: " .. #addon.HolyStrikeGlow.buttons)
     for _, name in ipairs({ "Holy Strike", "Judgement" }) do
         local id = addon.Client.SpellID(name)

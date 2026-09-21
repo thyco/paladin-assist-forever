@@ -8,9 +8,7 @@ addon.Glow = Glow
 local entries = {}
 local appearanceColor
 
-local function start(frame)
-    library.ProcGlow_Start(frame, { key = glowKey, startAnim = true, color = appearanceColor })
-end
+local ownerStyles = {}
 
 local function sameColor(first, second)
     if first == second then
@@ -30,21 +28,62 @@ local function sameColor(first, second)
     return true
 end
 
--- Applies a shared appearance without knowing anything about saved settings.
--- A nil color preserves Blizzard's native artwork; RGBA selects a custom tint.
-function Glow.Configure(options)
-    local color = options.color
-    if sameColor(appearanceColor, color) then
-        return
+local function update(entry)
+    local selectedOwner
+    local priority
+    for owner in pairs(entry.owners) do
+        local style = ownerStyles[owner]
+        local candidate = style and style.priority or 0
+        if priority == nil or candidate > priority
+            or (candidate == priority and owner < selectedOwner) then
+            selectedOwner = owner
+            priority = candidate
+        end
     end
 
-    appearanceColor = color and { color[1], color[2], color[3], color[4] } or nil
-    for _, entry in pairs(entries) do
-        if entry.active then
-            -- LibCustomGlow updates an existing effect in place. Its OnShow
-            -- animation does not restart because the frame is already shown.
-            start(entry.frame)
+    local wanted = selectedOwner ~= nil
+    local style = selectedOwner and ownerStyles[selectedOwner]
+    local color = appearanceColor
+    if style then
+        color = style.color
+    end
+
+    if wanted then
+        if not entry.active then
+            entry.frame:Show()
         end
+
+        if not entry.active or not sameColor(entry.color, color) then
+            -- Updating the shown effect changes tint without replaying OnShow.
+            library.ProcGlow_Start(entry.frame, { key = glowKey, startAnim = true, color = color })
+        end
+    elseif entry.active then
+        library.ProcGlow_Stop(entry.frame, glowKey)
+        entry.frame:Hide()
+    end
+
+    entry.active = wanted
+    entry.color = color
+end
+
+local function copyColor(color)
+    return color and { color[1], color[2], color[3], color[4] } or nil
+end
+
+-- Default appearance for owners without an explicit style.
+function Glow.Configure(options)
+    appearanceColor = copyColor(options.color)
+    for _, entry in pairs(entries) do
+        update(entry)
+    end
+end
+
+-- Higher priority wins when features share a button; ties use the owner name.
+-- A nil color explicitly selects native artwork rather than inheriting a tint.
+function Glow.ConfigureOwner(owner, options)
+    ownerStyles[owner] = { color = copyColor(options.color), priority = options.priority or 0 }
+    for _, entry in pairs(entries) do
+        update(entry)
     end
 end
 
@@ -81,20 +120,7 @@ function Glow.Set(button, owner, active)
     end
 
     entry.owners[owner] = active and true or nil
-    local wanted = next(entry.owners) ~= nil
-    if wanted == entry.active then
-        return
-    end
-
-    if wanted then
-        entry.frame:Show()
-        start(entry.frame)
-    else
-        library.ProcGlow_Stop(entry.frame, glowKey)
-        entry.frame:Hide()
-    end
-
-    entry.active = wanted
+    update(entry)
 end
 
 function Glow.ClearOwner(owner)

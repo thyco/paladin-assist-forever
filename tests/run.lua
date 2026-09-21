@@ -172,6 +172,13 @@ local lastFrame
 local function texture()
     return { SetAllPoints = function() end, SetTexture = function() end, SetBlendMode = function() end, SetVertexColor = function() end, SetPoint = function() end, SetColorTexture = function() end, SetSize = function() end }
 end
+local unitPresence = {}
+local unitAttackable = {}
+_G.UnitExists = function(unit) return unitPresence[unit] end
+_G.UnitCanAttack = function(player, unit)
+    assert(player == 'player')
+    return unitAttackable[unit]
+end
 local playerInCombat = true
 _G.UnitAffectingCombat = function(unit)
     assert(unit == 'player')
@@ -192,6 +199,10 @@ _G.CreateFrame = function(_, _, parent)
         return { SetLooping = function() end, Play = function() end, Stop = function() end, CreateAnimation = function() return { SetFromAlpha = function() end, SetToAlpha = function() end, SetDuration = function() end, SetSmoothing = function() end } end }
     end
     function frame:RegisterEvent(event) self.events = self.events or {}; self.events[event] = true end
+    function frame:RegisterUnitEvent(event, unit)
+        assert(unit == 'player')
+        self:RegisterEvent(event)
+    end
     function frame:UnregisterAllEvents() self.events = {} end
     function frame:SetScript(event, callback) self.scripts = self.scripts or {}; self.scripts[event] = callback end
     lastFrame = frame
@@ -275,7 +286,7 @@ local settingsControls = {}
 local settingsByVariable = {}
 local openedCategory
 _G.Settings = {
-    VarType = { Boolean = 'boolean', String = 'string' },
+    VarType = { Boolean = 'boolean', String = 'string', Number = 'number' },
     RegisterVerticalLayoutCategory = function(name)
         return { GetID = function() return 42 end }
     end,
@@ -289,6 +300,17 @@ _G.Settings = {
     end,
     CreateColorSwatch = function(category, setting)
         settingsControls[#settingsControls + 1] = setting
+    end,
+    CreateDropdown = function(category, setting, options)
+        setting.options = options()
+        settingsControls[#settingsControls + 1] = setting
+    end,
+    CreateControlTextContainer = function()
+        local data = {}
+        return {
+            Add = function(_, value, label) data[#data + 1] = { value = value, label = label } end,
+            GetData = function() return data end,
+        }
     end,
     RegisterAddOnCategory = function() end,
     OpenToCategory = function(id) openedCategory = id end,
@@ -612,6 +634,404 @@ test('appearance changes do not enable a disabled glow', function()
 
     equal(overlays[button].visible, false)
     equal(instance.Config.Get('cooldownGlowEnabled'), false)
+end)
+
+
+-- Seal events must be observed even with the reminder disabled or out of combat.
+local function sealFixture(settings)
+    now = 100
+    playerInCombat = true
+    _G.PaladinAssistForeverDB = settings or { cooldownGlowEnabled = false, sealBar = 1, sealButton = 2 }
+    local original = C_Spell.GetSpellInfo
+    local instance, events = loadBootstrap('PALADIN')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    instance.Client.SpellName = function(id)
+        if rawequal(id, secret) then error('secret spell ID reached spell lookup') end
+        if id == 3 or id == 4 then return 'Seal of Righteousness' end
+        if id == 5 then return 'Seal of Command' end
+        if id == 6 then return secret end
+        return original(id) and original(id).name
+    end
+
+    local function cast(id, unit)
+        events.scripts.OnEvent(events, 'UNIT_SPELLCAST_SUCCEEDED', unit or 'player', secret, id)
+    end
+    local function tick(time)
+        now = time
+        events.scripts.OnUpdate(events, 0.1)
+    end
+
+    return instance, events, cast, tick, overlays[ActionButton2]
+end
+
+test('seal defaults enabled and red but needs an explicit target', function()
+    local instance = sealFixture({ cooldownGlowEnabled = false })
+
+    equal(instance.Config.Get('sealGlowEnabled'), true)
+    equal(instance.Config.Get('sealGlowColor'), 'ffff0000')
+    equal(instance.Config.Get('sealBar'), 0)
+    equal(overlays[ActionButton1].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+end)
+test('seal reminder starts due then appears at exactly 27 seconds after cast', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    equal(overlay.visible, true)
+    equal(overlay.procColor[1], 1)
+    equal(overlay.procColor[2], 0)
+    equal(overlay.procColor[3], 0)
+
+    cast(3)
+    equal(overlay.visible, false)
+    tick(126.99)
+    equal(overlay.visible, false)
+    tick(127)
+    equal(overlay.visible, true)
+    tick(135)
+    equal(overlay.visible, true)
+    equal(overlays[ActionButton1].visible, false)
+end)
+test('different seal and another rank restart the timer', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    cast(3)
+    tick(120)
+    cast(5)
+    tick(127)
+    equal(overlay.visible, false)
+    tick(147)
+    equal(overlay.visible, true)
+
+    cast(4)
+    equal(overlay.visible, false)
+    tick(174)
+    equal(overlay.visible, true)
+end)
+test('unrelated and other-unit casts do not restart seal timer', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    cast(3)
+    tick(120)
+    cast(1)
+    cast(5, 'party1')
+    events.scripts.OnEvent(events, 'UNIT_SPELLCAST_START', 'player', 'guid', 3)
+
+    tick(127)
+
+    equal(overlay.visible, true)
+end)
+test('secret cast unit ID and spell name are ignored without inspecting them', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    cast(3)
+    tick(120)
+    cast(secret)
+    cast(5, secret)
+    cast(6)
+
+    tick(127)
+
+    equal(overlay.visible, true)
+end)
+test('seal cast outside combat is tracked and combat exit keeps timer', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+    equal(overlay.visible, false)
+    cast(3)
+    tick(120)
+    playerInCombat = true
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    equal(overlay.visible, false)
+
+    tick(127)
+    equal(overlay.visible, true)
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+    equal(overlay.visible, false)
+    tick(140)
+    equal(overlay.visible, false)
+end)
+test('disabled seal reminder keeps observing casts', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    instance.Config.Set('sealGlowEnabled', false)
+    equal(overlay.visible, false)
+    cast(3)
+    tick(120)
+    equal(overlay.visible, false)
+
+    instance.Config.Set('sealGlowEnabled', true)
+    equal(overlay.visible, false)
+    tick(127)
+    equal(overlay.visible, true)
+end)
+test('changing selected button clears old glow immediately', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+
+    settingsByVariable.PaladinAssistForever_SealButton:SetValue(1)
+
+    equal(overlay.visible, false)
+    equal(overlays[ActionButton1].visible, true)
+    settingsByVariable.PaladinAssistForever_SealBar:SetValue(0)
+    equal(overlays[ActionButton1].visible, false)
+end)
+test('hidden selected button does not glow', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    local old = ActionButton2.IsVisible
+    ActionButton2.IsVisible = function() return false end
+
+    tick(101)
+    ActionButton2.IsVisible = old
+
+    equal(overlay.visible, false)
+end)
+test('death discards an observed seal timer', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    cast(3)
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_DEAD')
+    playerInCombat = true
+
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+
+    equal(overlay.visible, true)
+end)
+test('seal takes color priority on shared button then restores Holy Strike glow', function()
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events, cast, tick = sealFixture({ sealBar = 1, sealButton = 1 })
+    local overlay = overlays[button]
+    equal(overlay.procColor[1], 1)
+    equal(overlay.procColor[2], 0)
+
+    cast(3)
+
+    equal(overlay.visible, true)
+    equal(overlay.procColor, nil)
+    tick(127)
+    equal(overlay.procColor[2], 0)
+    instance.Config.Set('sealGlowEnabled', false)
+    equal(overlay.visible, true)
+    equal(overlay.procColor, nil)
+end)
+test('seal color settings are independent and apply immediately', function()
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events, cast, tick, overlay = sealFixture({ sealBar = 1, sealButton = 2 })
+
+    settingsByVariable.PaladinAssistForever_SealGlowColor:SetValue('000000ff')
+
+    equal(overlay.procColor[3], 1)
+    equal(overlay.procColor[1], 0)
+    equal(overlays[button].procColor, nil)
+    equal(instance.Config.Get('sealGlowColor'), 'ff0000ff')
+end)
+test('invalid saved button selection and seal color recover safely', function()
+    local instance = sealFixture({ cooldownGlowEnabled = false, sealBar = 9, sealButton = 1.5, sealGlowColor = 'bad' })
+
+    equal(instance.Config.Get('sealBar'), 0)
+    equal(instance.Config.Get('sealButton'), 1)
+    equal(instance.Config.Get('sealGlowColor'), 'ffff0000')
+end)
+test('button selector exposes supported bars and twelve positions', function()
+    local instance = sealFixture()
+
+    equal(#settingsByVariable.PaladinAssistForever_SealBar.options, 9)
+    equal(#settingsByVariable.PaladinAssistForever_SealButton.options, 12)
+    equal(instance.Buttons.Selected(1, 2), ActionButton2)
+    equal(instance.Buttons.Selected(0, 2), nil)
+    equal(instance.Buttons.Selected(1, 13), nil)
+end)
+
+
+test('saved seal target and color survive reload with timer initially due', function()
+    local instance, events, cast = sealFixture({ cooldownGlowEnabled = false,
+        sealBar = 1, sealButton = 2, sealGlowColor = 'ff0000ff' })
+    cast(3)
+    equal(overlays[ActionButton2].visible, false)
+
+    local reloaded, reloadEvents = loadBootstrap('PALADIN')
+    reloadEvents.scripts.OnEvent(reloadEvents, 'PLAYER_LOGIN')
+
+    equal(reloaded.Config.Get('sealBar'), 1)
+    equal(reloaded.Config.Get('sealButton'), 2)
+    equal(overlays[ActionButton2].visible, true)
+    equal(overlays[ActionButton2].procColor[3], 1)
+end)
+test('reusable timers keep independent deadlines and clear to due', function()
+    local instance = sealFixture()
+    local first = instance.Timers.New()
+    local second = instance.Timers.New()
+    equal(first:IsDue(), true)
+
+    first:Start(10)
+    second:Start(20)
+    now = 110
+
+    equal(first:IsDue(), true)
+    equal(second:IsDue(), false)
+    equal(second:Remaining(), 10)
+    second:Clear()
+    equal(second:IsDue(), true)
+    equal(second:Remaining(), 0)
+end)
+test('manual bar selection resolves each default bar without spell lookup', function()
+    local instance = sealFixture()
+    local names = { 'MultiBarBottomLeftButton', 'MultiBarBottomRightButton',
+        'MultiBarRightButton', 'MultiBarLeftButton', 'MultiBar5Button',
+        'MultiBar6Button', 'MultiBar7Button' }
+
+    for index, name in ipairs(names) do
+        local target = {}
+        local previous = _G[name .. '12']
+        _G[name .. '12'] = target
+
+        local resolved = instance.Buttons.Selected(index + 1, 12)
+        _G[name .. '12'] = previous
+
+        equal(resolved, target)
+    end
+end)
+
+local function contextFixture()
+    unitPresence = {}
+    unitAttackable = { target = true, mouseover = true }
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events, cast, tick = sealFixture({ sealBar = 1, sealButton = 2 })
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+
+    return instance, events, cast, tick
+end
+
+test('target selection shows both due glows outside combat and clearing hides them', function()
+    local instance, events = contextFixture()
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+    equal(events.events.PLAYER_TARGET_CHANGED, true)
+
+    unitPresence.target = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+
+    unitPresence.target = nil
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+end)
+test('mouseover shows both due glows and polling handles mouse departure', function()
+    local instance, events, cast, tick = contextFixture()
+    equal(events.events.UPDATE_MOUSEOVER_UNIT, true)
+
+    unitPresence.mouseover = true
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+
+    unitPresence.mouseover = nil
+    tick(101)
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+end)
+test('target and mouseover do not bypass cooldowns seal timer or toggles', function()
+    local instance, events, cast, tick = contextFixture()
+    unitPresence.target = true
+    unitPresence.mouseover = true
+    cooldowns = { [1] = cooling(), [2] = cooling() }
+    cast(3)
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+
+    tick(127)
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+    instance.Config.Set('cooldownGlowEnabled', false)
+    instance.Config.Set('sealGlowEnabled', false)
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+    unitPresence = {}
+end)
+test('losing target retains mouseover visibility and combat needs neither', function()
+    local instance, events = contextFixture()
+    unitPresence.target = true
+    unitPresence.mouseover = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    unitPresence.target = nil
+
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+    playerInCombat = true
+    unitPresence = {}
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+end)
+test('restricted target existence is ignored while readable mouseover still works', function()
+    local instance, events, cast, tick = contextFixture()
+    unitPresence.target = secret
+
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+    unitPresence.mouseover = true
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+    unitPresence = {}
+end)
+
+test('friendly target and mouseover never enable glows outside combat', function()
+    local instance, events = contextFixture()
+    unitPresence = { target = true, mouseover = true }
+    unitAttackable = { target = false, mouseover = false }
+
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+    unitPresence = {}
+end)
+test('attackable mouseover enables glows even with a friendly selected target', function()
+    local instance, events = contextFixture()
+    unitPresence = { target = true, mouseover = true }
+    unitAttackable.target = false
+
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[ActionButton2].visible, true)
+    unitPresence = {}
+end)
+test('losing attackability hides both glows on polling', function()
+    local instance, events, cast, tick = contextFixture()
+    unitPresence.target = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[button].visible, true)
+
+    unitAttackable.target = false
+    tick(101)
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+    unitPresence = {}
+end)
+test('restricted attackability is not treated as permission to show a glow', function()
+    local instance, events = contextFixture()
+    unitPresence.target = true
+    unitAttackable.target = secret
+
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+    unitPresence = {}
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
