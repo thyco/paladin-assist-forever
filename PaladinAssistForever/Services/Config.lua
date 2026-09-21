@@ -1,0 +1,50 @@
+local _, addon = ...
+local Config = {}
+addon.Config = Config
+
+local defaults = { cooldownGlowEnabled = true }
+local values
+local listeners = {}
+
+function Config.Initialize()
+    if type(PaladinAssistForeverDB) ~= "table" then
+        PaladinAssistForeverDB = {}
+    end
+
+    values = PaladinAssistForeverDB
+    for key, default in pairs(defaults) do
+        if type(values[key]) ~= type(default) then
+            values[key] = default
+        end
+    end
+end
+
+function Config.Get(key)
+    if values and values[key] ~= nil then
+        return values[key]
+    end
+
+    return defaults[key]
+end
+
+function Config.Set(key, value)
+    assert(defaults[key] ~= nil, "Unknown configuration key: " .. key)
+    assert(type(value) == type(defaults[key]), "Invalid configuration value: " .. key)
+
+    if not values then
+        Config.Initialize()
+    end
+
+    if values[key] == value then
+        return
+    end
+
+    values[key] = value
+    for _, listener in ipairs(listeners) do
+        listener(key, value)
+    end
+end
+
+function Config.Subscribe(listener)
+    listeners[#listeners + 1] = listener
+end

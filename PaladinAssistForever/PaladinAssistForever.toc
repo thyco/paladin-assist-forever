@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Paladin Assist Forever
+## Notes: Reusable paladin helpers. Highlights Holy Strike in combat when either attack is off cooldown.
+## Author: Paladin Assist Forever
+## Version: 0.2.1
+## SavedVariables: PaladinAssistForeverDB
+
+Core.lua
+Services/Config.lua
+Services/Client.lua
+Services/Macros.lua
+Services/Buttons.lua
+Services/Glow.lua
+Services/Cooldowns.lua
+Features/HolyStrikeGlow.lua
+SettingsPanel.lua
+Bootstrap.lua
