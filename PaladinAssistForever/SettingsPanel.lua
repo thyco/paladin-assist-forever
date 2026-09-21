@@ -1,14 +1,10 @@
 local _, addon = ...
-local panel = {}
+local panel = { controls = {}, sections = {} }
 addon.SettingsPanel = panel
 
-local function registerSetting(category, key, variable, label, valueType)
+local function registerSetting(key, variable, label, valueType)
     return Settings.RegisterProxySetting(
-        category,
-        variable,
-        valueType,
-        label,
-        addon.Config.GetDefault(key),
+        panel.category, variable, valueType, label, addon.Config.GetDefault(key),
         function()
             return addon.Config.Get(key)
         end,
@@ -18,30 +14,42 @@ local function registerSetting(category, key, variable, label, valueType)
     )
 end
 
--- Both reminders use the same physical bar/position controls.
-local function registerButtonSelector(category, keyPrefix, variablePrefix, label)
-    local bar = registerSetting(category, keyPrefix .. "Bar",
-        "PaladinAssistForever_" .. variablePrefix .. "Bar", label .. " action bar", Settings.VarType.Number)
-    Settings.CreateDropdown(category, bar, function()
-        local options = Settings.CreateControlTextContainer()
-        options:Add(0, "Not selected")
-        for index, name in ipairs(addon.Buttons.Bars()) do
-            options:Add(index, name)
-        end
+local function checkbox(section, key, variable, label, y, tooltip)
+    local setting = registerSetting(key, variable, label, Settings.VarType.Boolean)
+    panel.controls[key] = addon.SettingsWidgets.Checkbox(section, label, y, setting, tooltip)
+end
 
-        return options:GetData()
-    end, "Choose a default action bar. This reminder does not glow until you select a bar.")
+local function color(section, key, variable, label, y, tooltip)
+    local setting = registerSetting(key, variable, label, Settings.VarType.String)
+    panel.controls[key] = addon.SettingsWidgets.Color(section, label, y, setting, tooltip)
+end
 
-    local button = registerSetting(category, keyPrefix .. "Button",
-        "PaladinAssistForever_" .. variablePrefix .. "Button", label .. " button", Settings.VarType.Number)
-    Settings.CreateDropdown(category, button, function()
-        local options = Settings.CreateControlTextContainer()
-        for index = 1, 12 do
-            options:Add(index, "Button " .. index)
-        end
+local function buttonSelector(section, keyPrefix, variablePrefix, name)
+    local bars = { { value = 0, label = "Not selected" } }
+    for index, label in ipairs(addon.Buttons.Bars()) do
+        bars[#bars + 1] = { value = index, label = label }
+    end
 
-        return options:GetData()
-    end, "Choose button 1 through 12 on that bar. This follows the physical position, including when the bar changes pages. Hidden buttons do not glow.")
+    local buttons = {}
+    for index = 1, 12 do
+        buttons[#buttons + 1] = { value = index, label = "Button " .. index }
+    end
+
+    local bar = registerSetting(keyPrefix .. "Bar", "PaladinAssistForever_" .. variablePrefix .. "Bar",
+        name .. " action bar", Settings.VarType.Number)
+    panel.controls[keyPrefix .. "Bar"] = addon.SettingsWidgets.Dropdown(section, "Action bar", -100, bar, bars,
+        "Choose a default action bar. No glow appears until a bar is selected.")
+
+    local button = registerSetting(keyPrefix .. "Button", "PaladinAssistForever_" .. variablePrefix .. "Button",
+        name .. " button", Settings.VarType.Number)
+    panel.controls[keyPrefix .. "Button"] = addon.SettingsWidgets.Dropdown(section, "Button", -136, button, buttons,
+        "Uses a fixed position, including when the bar changes pages. Hidden buttons do not glow.")
+end
+
+function panel:Refresh()
+    for _, control in pairs(self.controls) do
+        control.refresh()
+    end
 end
 
 function panel:Initialize()
@@ -49,37 +57,51 @@ function panel:Initialize()
         return
     end
 
-    self.category = Settings.RegisterVerticalLayoutCategory("Paladin Assist Forever")
-    local enabled = registerSetting(self.category, "cooldownGlowEnabled",
-        "PaladinAssistForever_CooldownGlowEnabled",
-        "Holy strike glow on Holy strike and judgement", Settings.VarType.Boolean)
-    Settings.CreateCheckbox(self.category, enabled,
-        "Glow the selected button only in combat, when either Holy Strike or Judgement is off cooldown. Applies to paladins only. Saved for all characters.")
+    local widgets = addon.SettingsWidgets
+    local canvas = CreateFrame("Frame")
+    self.canvas = canvas
+    canvas:Hide()
+    self.category = Settings.RegisterCanvasLayoutCategory(canvas, "Paladin Assist Forever")
 
-    registerButtonSelector(self.category, "holyStrike", "HolyStrike", "Holy Strike/Judgement")
+    local scroll = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, -8)
+    scroll:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -28, 8)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(580, 586)
+    scroll:SetScrollChild(content)
+    scroll:SetScript("OnSizeChanged", function(_, width)
+        content:SetWidth(math.max(1, width))
+    end)
 
-    local native = registerSetting(self.category, "glowNativeColor",
-        "PaladinAssistForever_GlowNativeColor", "Use Blizzard native glow", Settings.VarType.Boolean)
-    Settings.CreateCheckbox(self.category, native,
-        "Use Blizzard's original proc-glow artwork and colors, as in DK Force. Uncheck to use your custom glow color.")
+    widgets.Text(content, "Paladin Assist Forever", 8, -8, "GameFontNormalLarge")
+    widgets.Text(content, "Choose one button for each reminder. Changes apply immediately.", 8, -34)
+    local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · either spell off cooldown", -64, 270)
+    local seal = widgets.Section(content, "Seal reminder", "Combat or an attackable target / mouseover · refresh after 27 seconds", -350, 220)
+    self.sections = { holy, seal }
 
-    local color = registerSetting(self.category, "glowColor",
-        "PaladinAssistForever_GlowColor", "Custom glow color", Settings.VarType.String)
-    Settings.CreateColorSwatch(self.category, color,
-        "Choose a custom glow color. It applies when Use Blizzard native glow is unchecked; your choice is saved while native mode is enabled.")
+    checkbox(holy, "cooldownGlowEnabled", "PaladinAssistForever_CooldownGlowEnabled",
+        "Holy strike glow on Holy strike and judgement", -62,
+        "Glow only in combat when either spell is off cooldown. Applies to paladins only; saved for all characters.")
+    buttonSelector(holy, "holyStrike", "HolyStrike", "Holy Strike/Judgement")
+    checkbox(holy, "glowNativeColor", "PaladinAssistForever_GlowNativeColor", "Use Blizzard native glow", -172,
+        "Uncheck to use your custom color. Your custom color stays saved while native mode is enabled.")
+    color(holy, "glowColor", "PaladinAssistForever_GlowColor", "Custom glow color", -216,
+        "Applies when Use Blizzard native glow is unchecked. Cancel restores the previous color.")
 
-    local sealEnabled = registerSetting(self.category, "sealGlowEnabled",
-        "PaladinAssistForever_SealGlowEnabled", "Seal refresh reminder", Settings.VarType.Boolean)
-    Settings.CreateCheckbox(self.category, sealEnabled,
-        "Glow one selected button in combat or with an attackable target/mouseover unit, 27 seconds after a successful seal cast. Until a cast is observed after login or reload, a refresh is assumed due. Does not detect dispels.")
+    checkbox(seal, "sealGlowEnabled", "PaladinAssistForever_SealGlowEnabled", "Enable seal reminder", -62,
+        "Reminds after 27 seconds. After reload it assumes a refresh is due until a seal cast is observed. Does not detect dispels.")
+    buttonSelector(seal, "seal", "Seal", "Seal reminder")
+    color(seal, "sealGlowColor", "PaladinAssistForever_SealGlowColor", "Glow color", -180,
+        "Red by default, independent of Holy Strike. Seal color takes priority if both reminders share a button.")
 
-    registerButtonSelector(self.category, "seal", "Seal", "Seal reminder")
-
-    local sealColor = registerSetting(self.category, "sealGlowColor",
-        "PaladinAssistForever_SealGlowColor", "Seal reminder glow color", Settings.VarType.String)
-    Settings.CreateColorSwatch(self.category, sealColor,
-        "Independent of the Holy Strike glow; red by default. The seal color takes priority if both reminders use the same button.")
-
+    canvas:SetScript("OnShow", function()
+        content:SetWidth(math.max(1, scroll:GetWidth()))
+        self:Refresh()
+    end)
+    addon.Config.Subscribe(function()
+        self:Refresh()
+    end)
+    self:Refresh()
     Settings.RegisterAddOnCategory(self.category)
 end
 

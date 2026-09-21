@@ -44,3 +44,8 @@ Reusable components: `Timers.New` returns independent deadline timers; `Buttons.
 ## Manual Holy Strike/Judgement selection (0.6.0)
 
 Both current features now use one explicitly selected default bar/button. Holy Strike/Judgement no longer calls automatic spell or macro button discovery; its cooldown rule and combat-only visibility remain unchanged. New saved keys `holyStrikeBar` (default 0 / not selected) and `holyStrikeButton` (default 1) require a one-time selection on upgrade while retaining existing toggles and colors. Switching selection clears only this feature's previous ownership; hidden buttons do not glow. Both selectors share the same registration helper and `Buttons.Selected` resolver. Discovery utilities remain available for future features.
+
+
+## Bordered settings groups (0.6.1)
+
+The native AddOns category now uses a scrollable canvas with two bordered sections: Holy Strike / Judgement and Seal reminder. Each contains the existing toggle, manual bar/button selection and color controls. Reusable SettingsWidgets helpers own group borders, text, checkboxes, dropdowns and color picking. Existing proxy setting names, defaults and saved keys remain unchanged. Every change refreshes controls through Config subscriptions; reopening the panel refreshes them again. Color-picker cancellation restores the exact prior saved color without changing native-color mode. The actual WoW layout still needs in-client visual confirmation.

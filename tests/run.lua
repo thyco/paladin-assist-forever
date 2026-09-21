@@ -187,6 +187,24 @@ end
 _G.InCombatLockdown = function() return false end
 _G.CreateFrame = function(_, _, parent)
     local frame = { parent = parent, visible = false }
+    local function fontString()
+        return {
+            SetPoint = function() end, SetJustifyH = function() end, SetTextColor = function() end,
+            SetFontObject = function() end, SetText = function(self, text) self.text = text end,
+        }
+    end
+    frame.Text = fontString()
+    function frame:CreateFontString() return fontString() end
+    function frame:SetSize(width, height) self.width, self.height = width, height end
+    function frame:SetHeight(height) self.height = height end
+    function frame:SetWidth(width) self.width = width end
+    function frame:GetWidth() return self.width or 580 end
+    function frame:SetBackdrop(value) self.backdrop = value end
+    function frame:SetBackdropColor() end
+    function frame:SetBackdropBorderColor() end
+    function frame:SetScrollChild(child) self.scrollChild = child end
+    function frame:SetChecked(value) self.checked = value end
+    function frame:GetChecked() return self.checked end
     function frame:SetAllPoints() end
     function frame:SetFrameLevel() end
     function frame:EnableMouse() end
@@ -290,6 +308,9 @@ local settingsByVariable = {}
 local openedCategory
 _G.Settings = {
     VarType = { Boolean = 'boolean', String = 'string', Number = 'number' },
+    RegisterCanvasLayoutCategory = function(canvas, name)
+        return { GetID = function() return 42 end }
+    end,
     RegisterVerticalLayoutCategory = function(name)
         return { GetID = function() return 42 end }
     end,
@@ -317,6 +338,18 @@ _G.Settings = {
     end,
     RegisterAddOnCategory = function() end,
     OpenToCategory = function(id) openedCategory = id end,
+}
+
+local menuItems = {}
+_G.UIDropDownMenu_SetWidth = function(frame, width) frame.menuWidth = width end
+_G.UIDropDownMenu_Initialize = function(frame, callback) frame.menuInitializer = callback end
+_G.UIDropDownMenu_CreateInfo = function() return {} end
+_G.UIDropDownMenu_AddButton = function(info) menuItems[#menuItems + 1] = info end
+_G.UIDropDownMenu_SetText = function(frame, text) frame.menuText = text end
+_G.UIDropDownMenu_SetSelectedValue = function(frame, value) frame.selectedValue = value end
+_G.ColorPickerFrame = {
+    SetupColorPickerAndShow = function(self, options) self.options = options end,
+    GetColorRGB = function() return 1, 0, 0 end,
 }
 
 local function loadBootstrap(class, useSavedSelection)
@@ -846,8 +879,8 @@ end)
 test('button selector exposes supported bars and twelve positions', function()
     local instance = sealFixture()
 
-    equal(#settingsByVariable.PaladinAssistForever_SealBar.options, 9)
-    equal(#settingsByVariable.PaladinAssistForever_SealButton.options, 12)
+    equal(#instance.SettingsPanel.controls.sealBar.options, 9)
+    equal(#instance.SettingsPanel.controls.sealButton.options, 12)
     equal(instance.Buttons.Selected(1, 2), ActionButton2)
     equal(instance.Buttons.Selected(0, 2), nil)
     equal(instance.Buttons.Selected(1, 13), nil)
@@ -1150,8 +1183,50 @@ test('invalid Holy Strike selection falls back to no bar and first button', func
 
     equal(instance.Config.Get('holyStrikeBar'), 0)
     equal(instance.Config.Get('holyStrikeButton'), 1)
-    equal(#settingsByVariable.PaladinAssistForever_HolyStrikeBar.options, 9)
-    equal(#settingsByVariable.PaladinAssistForever_HolyStrikeButton.options, 12)
+    equal(#instance.SettingsPanel.controls.holyStrikeBar.options, 9)
+    equal(#instance.SettingsPanel.controls.holyStrikeButton.options, 12)
+end)
+
+test('settings groups contain their own controls and update saved values', function()
+    _G.PaladinAssistForeverDB = nil
+    local instance, events = loadBootstrap('PALADIN')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    local panel = instance.SettingsPanel
+    local controls = panel.controls
+    equal(#panel.sections, 2)
+    equal(panel.sections[1].backdrop.edgeSize, 1)
+    equal(panel.sections[2].backdrop.edgeSize, 1)
+    equal(controls.holyStrikeBar.parent, panel.sections[1])
+    equal(controls.sealBar.parent, panel.sections[2])
+
+    controls.cooldownGlowEnabled:SetChecked(false)
+    controls.cooldownGlowEnabled.scripts.OnClick(controls.cooldownGlowEnabled)
+
+    equal(instance.Config.Get('cooldownGlowEnabled'), false)
+    equal(controls.cooldownGlowEnabled:GetChecked(), false)
+    equal(instance.Config.Get('sealGlowEnabled'), true)
+
+    menuItems = {}
+    controls.holyStrikeButton.menuInitializer()
+    menuItems[4].func()
+
+    equal(instance.Config.Get('holyStrikeButton'), 4)
+    equal(controls.holyStrikeButton.selectedValue, 4)
+    equal(controls.holyStrikeButton.menuText, 'Button 4')
+end)
+test('custom panel color picker applies RGB and cancel restores saved color', function()
+    _G.PaladinAssistForeverDB = { glowColor = 'ff0000ff', glowNativeColor = true }
+    local instance, events = loadBootstrap('PALADIN')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    local control = instance.SettingsPanel.controls.glowColor
+
+    control.scripts.OnClick(control)
+    ColorPickerFrame.options.swatchFunc()
+
+    equal(instance.Config.Get('glowColor'), 'ffff0000')
+    equal(instance.Config.Get('glowNativeColor'), true)
+    ColorPickerFrame.options.cancelFunc()
+    equal(instance.Config.Get('glowColor'), 'ff0000ff')
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
