@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.5.3 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.6.0 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.5.3.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.6.0.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -18,20 +18,20 @@ Mana, target and range are ignored. The global cooldown is ignored when the clie
 /startattack
 ```
 
-The macro name can be anything, but use a unique name across account and character macros. Keep the `#` in `#showtooltip`; do not add a backslash before it.
+The macro name can be anything. Keep the `#` in `#showtooltip`; do not add a backslash before it.
 
-The addon finds the button automatically, including when you move the macro or change bar pages. Multiple visible placements all glow. A direct Holy Strike spell button also matches. The first version supports English spell names and simple `/cast Spell` lines, including rank suffixes and case differences. Conditional macros, `/castsequence`, third-party action bars, pet bars and vehicle bars are outside this version's scope.
+Open `/paf config` and choose **Holy Strike/Judgement action bar** and **Holy Strike/Judgement button**. This is required for both new installations and upgrades from automatic detection; the default is **Not selected**. Only your selected visible button glows. It stays at that physical position when spells move or bar pages change, so update the selection if you move your macro. The addon no longer inspects macro contents for this feature. Spell lookup still uses English names. Third-party action bars, pet bars and vehicle bars are outside this version's scope.
 
 ## Configuration
 
 Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 
-- **Holy strike glow on Holy strike and judgement** is checked by default.
+- **Holy strike glow on Holy strike and judgement** is checked by default. Select its bar and button below the checkbox; no glow appears until a bar is selected.
 - **Use Blizzard native glow** is checked by default. This preserves the original animated proc artwork and colors, matching DK Force.
 - To customize the color, uncheck **Use Blizzard native glow**, then click **Custom glow color** to open the color picker. Changes update active glows immediately. Cancel restores the previous custom color.
 - You can choose a custom color while native mode is enabled; it is saved for later. Switching back to native retains that custom color.
 - Unchecking the feature toggle immediately removes this feature's glow and stops its cooldown/button checks.
-- Checking the feature toggle again immediately discovers the current macro position and reevaluates readiness. The Holy Strike/Judgement glow appears only in combat. The seal reminder also appears outside combat when your target or mouseover is a unit you can attack, including attackable neutral units and unit-frame mouseovers. Target changes refresh immediately; mouseover departure is also checked every 0.1 seconds.
+- Checking the feature toggle again immediately uses the selected position and reevaluates readiness. The Holy Strike/Judgement glow appears only in combat. The seal reminder also appears outside combat when your target or mouseover is a unit you can attack, including attackable neutral units and unit-frame mouseovers. Target changes refresh immediately; mouseover departure is also checked every 0.1 seconds.
 - All preferences are saved account-wide across reloads and logouts. Existing installations default to enabled on upgrade.
 - The panel is available on all characters; the glow feature still runs only for paladins.
 
@@ -50,7 +50,7 @@ In `/paf config`, enable **Seal refresh reminder** (enabled by default), then ch
 
 ## Diagnostics
 
-Type `/paf` to print the client build/interface, number of matching buttons, spell IDs and current cooldown states. Zero matching buttons means the macro is not on a visible supported bar or its cast lines did not match. Give macros unique names: on clients that expose a macro's displayed spell ID instead of its macro index, discovery resolves the macro body by name.
+Type `/paf` to print the client build/interface, both selected bar/button positions, spell IDs, cooldown states and seal timer diagnostics. If a target says **not selected**, choose its bar and button in `/paf config`.
 
 The manifest targets interface **16001**. If a later beta marks it outdated, compare the fourth value printed by `/run print(GetBuildInfo())` with the TOC's `## Interface` line before updating the manifest. Merely changing that number does not validate compatibility with API changes.
 
@@ -75,12 +75,12 @@ Every file receives the private addon namespace through `local _, addon = ...`. 
 | `Services/Cooldowns.lua` | `IsReady(spellID, cooldownEvent)`, `AnyReady(spellIDs, cooldownEvent)`, `Invalidate(spellID)` | Evaluates ordinary, non-charge spell cooldowns. `IsReady` returns true, false, or nil for unavailable data; `AnyReady` returns a boolean. |
 | `Services/Timers.lua` | `New()` → `Start(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
 | `Services/Config.lua` | `Initialize()`, `Get(key)`, `GetDefault(key)`, `GetColor(key)`, `Set(key, value)`, `Subscribe(listener)` | Saves typed defaults and preferences; notifies consumers when a setting changes. |
-| `SettingsPanel.lua` | `Initialize()`, `Open()` | Registers the native AddOns category, feature toggle, native-color toggle and custom color picker. |
+| `SettingsPanel.lua` | `Initialize()`, `Open()` | Registers the native AddOns category, feature toggles, shared bar/button selector controls and color controls. |
 | `Core.lua` | `RegisterFeature(feature)` | Starts paladin features and calls `Refresh(discover, cooldownEvent)` only when their optional `settingKey` is enabled. Calls `Stop()` immediately when disabled. Optional `ApplySettings()` configures feature appearance; `OnEvent(event, ...)` continues observing events even while disabled. |
 
 `Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. `Glow.Set` accepts optional `{ startAnim = false }` to skip or cancel startup animation; the seal feature uses this outside combat. Use `Glow.ConfigureOwner(owner, { color = ..., priority = ... })` for independent feature colors; higher priority wins on shared buttons, and owner names break ties deterministically. Saved preferences stay in Config; Glow remains independent of the settings panel.
 
-A future feature can reuse discovery and rendering without copying them:
+Automatic spell discovery remains available as a reusable service for future features, but both current reminders use manual selection. A future feature can reuse discovery and rendering without copying them:
 
 ```lua
 local _, addon = ...
@@ -123,7 +123,7 @@ In-game acceptance checks:
 - Put both spells on cooldown; confirm the glow disappears. When either finishes first, confirm the same button glows again.
 - In combat, check with no target, out of range and without enough mana. After combat the Holy Strike glow must remain hidden regardless of target, mouseover or readiness.
 - Trigger only the global cooldown while both tracked abilities are otherwise ready; confirm no flicker where the client exposes the distinction.
-- Move the macro, change bar pages and reload; confirm no leftover glow on its old slot.
+- Move the macro or change bar pages; confirm the glow remains on the selected physical position. Change the selector to the new position and confirm the old glow clears immediately. Reload and confirm the selection persists.
 - Log into a non-paladin; confirm no feature updates or glow.
 - Open `/paf config`; disable the glow while it is visible and confirm it disappears immediately. Reload and confirm the checkbox remains off. Enable it again and confirm readiness is reflected immediately.
 - With a glow active, uncheck **Use Blizzard native glow**, choose a custom color, and confirm it changes immediately without repeating the flash. Cancel a color change, restore native mode, and reload to verify saved appearance.

@@ -71,7 +71,7 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
     end
 
     local version, build, _, interface = GetBuildInfo()
-    print("Paladin Assist Forever 0.5.3 | client " .. version .. " (" .. build .. ") | interface " .. interface)
+    print("Paladin Assist Forever 0.6.0 | client " .. version .. " (" .. build .. ") | interface " .. interface)
     if not addon.started then
         print("Paladin features are inactive on this character.")
         return
@@ -85,7 +85,9 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
         .. " | target: " .. (target and (target .. " / " .. addon.Config.Get("sealButton")) or "not selected")
         .. " | refresh due in: " .. string.format("%.1fs", seal.timer:Remaining())
         .. " | ignored restricted casts: " .. seal.ignoredRestrictedCasts)
-    print("Holy Strike buttons found: " .. #addon.HolyStrikeGlow.buttons)
+    local holyBar = addon.Buttons.Bars()[addon.Config.Get("holyStrikeBar")]
+    print("Holy Strike/Judgement target: "
+        .. (holyBar and (holyBar .. " / " .. addon.Config.Get("holyStrikeButton")) or "not selected"))
     for _, name in ipairs({ "Holy Strike", "Judgement" }) do
         local id = addon.Client.SpellID(name)
         local ready = addon.Cooldowns.IsReady(id)

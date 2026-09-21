@@ -39,3 +39,8 @@ Reusable components: `Timers.New` returns independent deadline timers; `Buttons.
 ## Combat-only startup flash (0.5.3)
 
 `Glow.Set(button, owner, active, options)` accepts a per-request `startAnim` flag, true by default. Seal requests disable it outside combat; Holy Strike remains combat-only and uses the default. The winning owner supplies the animation option alongside its tint. Disabling startup on an active effect stops/restarts the library effect directly into its loop, cancelling an unfinished flash. Enabling startup on an already visible effect updates the option without replaying the flash. Polling does not restart either animation.
+
+
+## Manual Holy Strike/Judgement selection (0.6.0)
+
+Both current features now use one explicitly selected default bar/button. Holy Strike/Judgement no longer calls automatic spell or macro button discovery; its cooldown rule and combat-only visibility remain unchanged. New saved keys `holyStrikeBar` (default 0 / not selected) and `holyStrikeButton` (default 1) require a one-time selection on upgrade while retaining existing toggles and colors. Switching selection clears only this feature's previous ownership; hidden buttons do not glow. Both selectors share the same registration helper and `Buttons.Selected` resolver. Discovery utilities remain available for future features.

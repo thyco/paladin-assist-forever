@@ -1,6 +1,5 @@
 local _, addon = ...
 local feature = {
-    buttons = {},
     spells = {},
     owner = "holy-strike-ready",
     settingKey = "cooldownGlowEnabled",
@@ -14,28 +13,21 @@ function feature:Refresh(discover, cooldownEvent)
             holyStrike = addon.Client.SpellID("Holy Strike"),
             judgement = addon.Client.SpellID("Judgement"),
         }
-
-        local buttons = addon.Buttons.FindSpell("Holy Strike")
-        local retained = {}
-        for _, button in ipairs(buttons) do
-            retained[button] = true
-        end
-
-        for _, button in ipairs(self.buttons) do
-            if not retained[button] then
-                addon.Glow.Set(button, self.owner, false)
-            end
-        end
-
-        self.buttons = buttons
     end
+
+    local button = addon.Buttons.Selected(addon.Config.Get("holyStrikeBar"), addon.Config.Get("holyStrikeButton"))
+    if self.button and self.button ~= button then
+        addon.Glow.Set(self.button, self.owner, false)
+    end
+
+    self.button = button
 
     local ready = addon.Cooldowns.AnyReady(self.spells, cooldownEvent)
     local combat = UnitAffectingCombat("player")
     local showGlow = addon.Client.Readable(combat) and combat and ready or false
 
-    for _, button in ipairs(self.buttons) do
-        addon.Glow.Set(button, self.owner, showGlow)
+    if button then
+        addon.Glow.Set(button, self.owner, button:IsVisible() and showGlow)
     end
 end
 
@@ -45,5 +37,5 @@ function feature:Stop()
         addon.Cooldowns.Invalidate(id)
     end
 
-    self.buttons = {}
+    self.button = nil
 end

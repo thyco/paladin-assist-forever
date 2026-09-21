@@ -2,7 +2,7 @@
 ## Title: Paladin Assist Forever
 ## Notes: Reusable paladin helpers. Combat-only Holy Strike readiness; timed seal reminders in combat or with an attackable target/mouseover.
 ## Author: Paladin Assist Forever
-## Version: 0.5.3
+## Version: 0.6.0
 ## OptionalDeps: LibCustomGlow-1.0
 ## SavedVariables: PaladinAssistForeverDB
 

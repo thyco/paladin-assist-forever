@@ -18,6 +18,32 @@ local function registerSetting(category, key, variable, label, valueType)
     )
 end
 
+-- Both reminders use the same physical bar/position controls.
+local function registerButtonSelector(category, keyPrefix, variablePrefix, label)
+    local bar = registerSetting(category, keyPrefix .. "Bar",
+        "PaladinAssistForever_" .. variablePrefix .. "Bar", label .. " action bar", Settings.VarType.Number)
+    Settings.CreateDropdown(category, bar, function()
+        local options = Settings.CreateControlTextContainer()
+        options:Add(0, "Not selected")
+        for index, name in ipairs(addon.Buttons.Bars()) do
+            options:Add(index, name)
+        end
+
+        return options:GetData()
+    end, "Choose a default action bar. This reminder does not glow until you select a bar.")
+
+    local button = registerSetting(category, keyPrefix .. "Button",
+        "PaladinAssistForever_" .. variablePrefix .. "Button", label .. " button", Settings.VarType.Number)
+    Settings.CreateDropdown(category, button, function()
+        local options = Settings.CreateControlTextContainer()
+        for index = 1, 12 do
+            options:Add(index, "Button " .. index)
+        end
+
+        return options:GetData()
+    end, "Choose button 1 through 12 on that bar. This follows the physical position, including when the bar changes pages. Hidden buttons do not glow.")
+end
+
 function panel:Initialize()
     if self.category then
         return
@@ -28,7 +54,9 @@ function panel:Initialize()
         "PaladinAssistForever_CooldownGlowEnabled",
         "Holy strike glow on Holy strike and judgement", Settings.VarType.Boolean)
     Settings.CreateCheckbox(self.category, enabled,
-        "Glow the Holy Strike button only in combat, when either Holy Strike or Judgement is off cooldown. Applies to paladins only. Saved for all characters.")
+        "Glow the selected button only in combat, when either Holy Strike or Judgement is off cooldown. Applies to paladins only. Saved for all characters.")
+
+    registerButtonSelector(self.category, "holyStrike", "HolyStrike", "Holy Strike/Judgement")
 
     local native = registerSetting(self.category, "glowNativeColor",
         "PaladinAssistForever_GlowNativeColor", "Use Blizzard native glow", Settings.VarType.Boolean)
@@ -45,28 +73,7 @@ function panel:Initialize()
     Settings.CreateCheckbox(self.category, sealEnabled,
         "Glow one selected button in combat or with an attackable target/mouseover unit, 27 seconds after a successful seal cast. Until a cast is observed after login or reload, a refresh is assumed due. Does not detect dispels.")
 
-    local sealBar = registerSetting(self.category, "sealBar",
-        "PaladinAssistForever_SealBar", "Seal reminder action bar", Settings.VarType.Number)
-    Settings.CreateDropdown(self.category, sealBar, function()
-        local options = Settings.CreateControlTextContainer()
-        options:Add(0, "Not selected")
-        for index, label in ipairs(addon.Buttons.Bars()) do
-            options:Add(index, label)
-        end
-
-        return options:GetData()
-    end, "Choose the default action bar containing your seal button. No reminder is shown until you select a bar.")
-
-    local sealButton = registerSetting(self.category, "sealButton",
-        "PaladinAssistForever_SealButton", "Seal reminder button", Settings.VarType.Number)
-    Settings.CreateDropdown(self.category, sealButton, function()
-        local options = Settings.CreateControlTextContainer()
-        for index = 1, 12 do
-            options:Add(index, "Button " .. index)
-        end
-
-        return options:GetData()
-    end, "Choose button 1 through 12 on that bar. This follows the physical position, including when the bar changes pages. Hidden buttons do not glow.")
+    registerButtonSelector(self.category, "seal", "Seal", "Seal reminder")
 
     local sealColor = registerSetting(self.category, "sealGlowColor",
         "PaladinAssistForever_SealGlowColor", "Seal reminder glow color", Settings.VarType.String)

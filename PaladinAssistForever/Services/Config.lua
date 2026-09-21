@@ -4,6 +4,8 @@ addon.Config = Config
 
 local defaults = {
     cooldownGlowEnabled = true,
+    holyStrikeBar = 0,
+    holyStrikeButton = 1,
     glowNativeColor = true,
     glowColor = "ff00e633",
     sealGlowEnabled = true,
@@ -23,9 +25,9 @@ local function validValue(key, value)
         return #value == 8 and value:match("^%x+$") ~= nil
     end
 
-    if key == "sealBar" then
+    if key == "sealBar" or key == "holyStrikeBar" then
         return value >= 0 and value <= 8 and value == math.floor(value)
-    elseif key == "sealButton" then
+    elseif key == "sealButton" or key == "holyStrikeButton" then
         return value >= 1 and value <= 12 and value == math.floor(value)
     end
 

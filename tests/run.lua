@@ -222,19 +222,22 @@ test('another owner keeps shared glow visible', function()
     addon.Glow.ClearOwner('second')
     equal(overlays[button].visible, false)
 end)
-test('feature glows macro when only Judgement is ready', function()
+test('feature glows selected button when only Judgement is ready', function()
+    addon.Config.Initialize()
+    addon.Config.Set('holyStrikeBar', 1)
+    addon.Config.Set('holyStrikeButton', 1)
     cooldowns = { [1] = cooling(), [2] = ready() }
 
     addon.HolyStrikeGlow:Refresh(true)
 
     equal(overlays[button].visible, true)
 end)
-test('feature removes glow when macro moves away', function()
+test('feature retains selected position when macro moves away', function()
     button.action = 2
 
     addon.HolyStrikeGlow:Refresh(true)
 
-    equal(overlays[button].visible, false)
+    equal(overlays[button].visible, true)
     button.action = 1
 end)
 test('feature clears glow when both cooldowns start', function()
@@ -316,7 +319,19 @@ _G.Settings = {
     OpenToCategory = function(id) openedCategory = id end,
 }
 
-local function loadBootstrap(class)
+local function loadBootstrap(class, useSavedSelection)
+    -- Existing behavior tests use an explicitly selected main-bar button.
+    -- Selection default/migration tests opt out to exercise real saved data.
+    if not useSavedSelection then
+        _G.PaladinAssistForeverDB = _G.PaladinAssistForeverDB or {}
+        if _G.PaladinAssistForeverDB.holyStrikeBar == nil then
+            _G.PaladinAssistForeverDB.holyStrikeBar = 1
+        end
+        if _G.PaladinAssistForeverDB.holyStrikeButton == nil then
+            _G.PaladinAssistForeverDB.holyStrikeButton = 1
+        end
+    end
+
     local instance = {}
     _G.UnitClass = function() return class, class end
     _G.SlashCmdList = {}
@@ -388,7 +403,7 @@ test('disabled preference survives a reload', function()
     equal(_G.PaladinAssistForeverDB.futureOption, 'keep')
     equal(overlays[button].visible, false)
 end)
-test('re-enabling discovers moved macro and refreshes immediately', function()
+test('re-enabling retains selected position after macro moves', function()
     _G.PaladinAssistForeverDB = { cooldownGlowEnabled = false }
     cooldowns = { [1] = ready(), [2] = ready() }
     local instance, events = loadBootstrap('PALADIN')
@@ -398,8 +413,8 @@ test('re-enabling discovers moved macro and refreshes immediately', function()
 
     settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(true)
 
-    equal(overlays[_G.ActionButton2].visible, true)
-    equal(overlays[button].visible, false)
+    equal(overlays[_G.ActionButton2].visible, false)
+    equal(overlays[button].visible, true)
     button.action = 1
     _G.ActionButton2.action = 2
 end)
@@ -1079,6 +1094,64 @@ test('leaving combat switches a visible seal glow to no-flash mode', function()
     equal(overlays[ActionButton2].procStartAnimation, false)
     equal(overlays[button].visible, false)
     unitPresence = {}
+end)
+
+test('Holy Strike upgrade requires selection and preserves existing appearance', function()
+    _G.PaladinAssistForeverDB = { glowNativeColor = false, glowColor = 'ff0000ff' }
+    cooldowns = { [1] = ready(), [2] = ready() }
+    playerInCombat = true
+    local instance, events = loadBootstrap('PALADIN', true)
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('holyStrikeBar'), 0)
+    equal(instance.Config.Get('holyStrikeButton'), 1)
+    equal(instance.Config.Get('glowColor'), 'ff0000ff')
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, false)
+end)
+test('Holy Strike selector moves one glow immediately without automatic discovery', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    instance.Config.Set('sealGlowEnabled', false)
+    instance.Buttons.FindSpell = function() error('automatic discovery must not run') end
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    equal(overlays[button].visible, true)
+
+    settingsByVariable.PaladinAssistForever_HolyStrikeButton:SetValue(2)
+
+    equal(overlays[button].visible, false)
+    equal(overlays[ActionButton2].visible, true)
+    settingsByVariable.PaladinAssistForever_HolyStrikeBar:SetValue(0)
+    equal(overlays[ActionButton2].visible, false)
+end)
+test('Holy Strike selection persists and hidden selected buttons do not glow', function()
+    _G.PaladinAssistForeverDB = { holyStrikeBar = 1, holyStrikeButton = 2 }
+    cooldowns = { [1] = ready(), [2] = ready() }
+    playerInCombat = true
+    local instance, events = loadBootstrap('PALADIN', true)
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    equal(overlays[ActionButton2].visible, true)
+    equal(overlays[button].visible, false)
+    local visible = ActionButton2.IsVisible
+    ActionButton2.IsVisible = function() return false end
+
+    events.scripts.OnUpdate(events, 0.1)
+    ActionButton2.IsVisible = visible
+
+    equal(overlays[ActionButton2].visible, false)
+    equal(instance.Config.Get('holyStrikeButton'), 2)
+end)
+test('invalid Holy Strike selection falls back to no bar and first button', function()
+    _G.PaladinAssistForeverDB = { holyStrikeBar = 99, holyStrikeButton = 0 }
+    local instance, events = loadBootstrap('PALADIN', true)
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('holyStrikeBar'), 0)
+    equal(instance.Config.Get('holyStrikeButton'), 1)
+    equal(#settingsByVariable.PaladinAssistForever_HolyStrikeBar.options, 9)
+    equal(#settingsByVariable.PaladinAssistForever_HolyStrikeButton.options, 12)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
