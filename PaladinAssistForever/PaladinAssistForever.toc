@@ -1,8 +1,9 @@
 ## Interface: 16001
 ## Title: Paladin Assist Forever
+## IconTexture: Interface\AddOns\PaladinAssistForever\Media\Icon.tga
 ## Notes: Reusable paladin helpers. Combat-only Holy Strike readiness; timed seal reminders in combat or with an attackable target/mouseover.
 ## Author: Paladin Assist Forever
-## Version: 0.6.3
+## Version: 0.6.5
 ## OptionalDeps: LibCustomGlow-1.0
 ## SavedVariables: PaladinAssistForeverDB
 
