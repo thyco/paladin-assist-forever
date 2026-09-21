@@ -166,9 +166,35 @@ assert(proc.ProcStartAnim:IsPlaying())
 addon.Glow.ClearOwner('first')
 print('PASS subsequent activation reuses the library pool safely')
 
+-- Loop-only requests must skip the actual library startup animation.
+local flashes = proc.ProcStartAnim.plays
+addon.Glow.Set(target, 'seal', true, { startAnim = false })
+assert(proc.ProcStartAnim.plays == flashes)
+assert(not proc.ProcStartAnim:IsPlaying())
+assert(proc.ProcLoopAnim:IsPlaying())
+local loops = proc.ProcLoopAnim.plays
+addon.Glow.Set(target, 'seal', true, { startAnim = false })
+assert(proc.ProcLoopAnim.plays == loops)
+addon.Glow.Set(target, 'seal', true, { startAnim = true })
+assert(proc.ProcStartAnim.plays == flashes, 'entering combat must not reflash an existing glow')
+assert(proc.ProcLoopAnim:IsPlaying())
+addon.Glow.ClearOwner('seal')
+print('PASS loop-only activation skips flash and combat entry preserves loop')
+
+addon.Glow.Set(target, 'seal', true, { startAnim = true })
+assert(proc.ProcStartAnim:IsPlaying())
+flashes = proc.ProcStartAnim.plays
+addon.Glow.Set(target, 'seal', true, { startAnim = false })
+assert(not proc.ProcStartAnim:IsPlaying(), 'combat exit must cancel an in-flight flash')
+assert(proc.ProcStartAnim.plays == flashes)
+assert(proc.ProcLoopAnim:IsPlaying())
+assert(not proc.ProcStart.shown and proc.ProcLoop.shown)
+addon.Glow.ClearOwner('seal')
+print('PASS disabling flash cancels startup and immediately starts the loop')
+
 -- Loading our bundled copies after another copy must preserve the live library.
 assert(loadfile('PaladinAssistForever/Libs/LibStub/LibStub.lua'))()
 assert(loadfile('PaladinAssistForever/Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua'))()
 assert(LibStub('LibCustomGlow-1.0') == library)
 print('PASS duplicate library loading preserves the registered library')
-print('\n8 integration checks passed')
+print('\n10 integration checks passed')

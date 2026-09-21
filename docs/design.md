@@ -34,3 +34,8 @@ A second independently enabled feature tracks readable successful player seal ca
 Selection is one physical default bar/button, configured through two native dropdowns. No target is selected by default; the feature defaults enabled and red. It shows in combat or with an attackable target/mouseover unit, and observes casts while disabled or hidden. Shared overlay ownership now supports per-owner tint and deterministic priority: seal reminder priority 10 overrides the default Holy Strike style until the seal request clears.
 
 Reusable components: `Timers.New` returns independent deadline timers; `Buttons.Selected` resolves a physical position; `Glow.ConfigureOwner` assigns feature appearance; `Core.OnEvent` forwards observations separately from enabled-only rendering. Only player successful-cast events are subscribed; existing bar discovery cadence is retained.
+
+
+## Combat-only startup flash (0.5.3)
+
+`Glow.Set(button, owner, active, options)` accepts a per-request `startAnim` flag, true by default. Seal requests disable it outside combat; Holy Strike remains combat-only and uses the default. The winning owner supplies the animation option alongside its tint. Disabling startup on an active effect stops/restarts the library effect directly into its loop, cancelling an unfinished flash. Enabling startup on an already visible effect updates the option without replaying the flash. Polling does not restart either animation.

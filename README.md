@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.5.2 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.5.3 provides an animated Blizzard-style proc glow to the default action-bar button containing Holy Strike while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.5.2.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.5.3.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -40,6 +40,7 @@ Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 In `/paf config`, enable **Seal refresh reminder** (enabled by default), then choose **Seal reminder action bar** and **Seal reminder button**. The default is **Not selected**, so nothing extra glows until you choose the target. **Seal reminder glow color** defaults to red and is independent of the Holy Strike color.
 
 - A successful player seal cast starts a 27-second timer. At 27 seconds the chosen button glows, reminding you to refresh before the assumed 30-second buff expires. Casting any recognized seal again resets it immediately.
+- New glows flash once in combat. Outside combat the seal glow starts directly in its loop. Entering combat does not reflash an existing glow; leaving combat cancels any unfinished flash.
 - The glow appears in combat or with an attackable target/mouseover unit. Casts while the reminder is hidden or disabled still update its timer. Losing the visibility condition hides the glow without resetting the timer.
 - This is a refresh estimate, not an aura check: it never reads buff data and cannot detect an early dispel or manual removal. After login/reload or death, it assumes a refresh is due until it observes another seal cast.
 - Successful cast events may themselves contain restricted values. Unreadable unit/spell data is ignored safely; such a cast cannot restart the timer. `/paf` reports ignored restricted casts for troubleshooting. Verify successful seal casts hide the reminder in your client, including in combat.
@@ -57,7 +58,7 @@ Cooldown APIs can return restricted values in combat. The service uses public st
 
 ## Glow rendering
 
-Version 0.3.0 uses **LibCustomGlow-1.0**'s `ProcGlow_Start` / `ProcGlow_Stop`, with the native artwork, an initial flash and a looping animation, matching DK Force's renderer. It replaces the previous static border. The adapter uses a dedicated addon overlay and key, leaving Blizzard's own proc glow alone. Repeated updates do not restart the animation; it stops only when the last feature releases ownership.
+Version 0.3.0 uses **LibCustomGlow-1.0**'s `ProcGlow_Start` / `ProcGlow_Stop`, with the native artwork, a combat-only initial flash and a looping animation, matching DK Force's renderer. It replaces the previous static border. The adapter uses a dedicated addon overlay and key, leaving Blizzard's own proc glow alone. Repeated updates do not restart the animation; it stops only when the last feature releases ownership.
 
 The library copy is the same minor version 25 bundled with DK Force. See `PaladinAssistForever/Libs/README.md` for provenance and license notices. Existing settings are preserved when upgrading.
 
@@ -70,14 +71,14 @@ Every file receives the private addon namespace through `local _, addon = ...`. 
 | `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)`, `HasGlowContext()` | Adapts modern APIs and available legacy equivalents; isolates client changes. |
 | `Services/Macros.lua` | `Casts(body, spellName)` | Exact, case-insensitive matching of simple cast lines; never executes macros. |
 | `Services/Buttons.lua` | `All()`, `FindSpell(spellName)`, `Bars()`, `Selected(bar, index)` | Enumerates default buttons and resolves current slots, including macros and paging. |
-| `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active)`, `ClearOwner(owner)`, `Configure(options)`, `ConfigureOwner(owner, options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
+| `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active, options)`, `ClearOwner(owner)`, `Configure(options)`, `ConfigureOwner(owner, options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
 | `Services/Cooldowns.lua` | `IsReady(spellID, cooldownEvent)`, `AnyReady(spellIDs, cooldownEvent)`, `Invalidate(spellID)` | Evaluates ordinary, non-charge spell cooldowns. `IsReady` returns true, false, or nil for unavailable data; `AnyReady` returns a boolean. |
 | `Services/Timers.lua` | `New()` → `Start(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
 | `Services/Config.lua` | `Initialize()`, `Get(key)`, `GetDefault(key)`, `GetColor(key)`, `Set(key, value)`, `Subscribe(listener)` | Saves typed defaults and preferences; notifies consumers when a setting changes. |
 | `SettingsPanel.lua` | `Initialize()`, `Open()` | Registers the native AddOns category, feature toggle, native-color toggle and custom color picker. |
 | `Core.lua` | `RegisterFeature(feature)` | Starts paladin features and calls `Refresh(discover, cooldownEvent)` only when their optional `settingKey` is enabled. Calls `Stop()` immediately when disabled. Optional `ApplySettings()` configures feature appearance; `OnEvent(event, ...)` continues observing events even while disabled. |
 
-`Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. Use `Glow.ConfigureOwner(owner, { color = ..., priority = ... })` for independent feature colors; higher priority wins on shared buttons, and owner names break ties deterministically. Saved preferences stay in Config; Glow remains independent of the settings panel.
+`Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. `Glow.Set` accepts optional `{ startAnim = false }` to skip or cancel startup animation; the seal feature uses this outside combat. Use `Glow.ConfigureOwner(owner, { color = ..., priority = ... })` for independent feature colors; higher priority wins on shared buttons, and owner names break ties deterministically. Saved preferences stay in Config; Glow remains independent of the settings panel.
 
 A future feature can reuse discovery and rendering without copying them:
 

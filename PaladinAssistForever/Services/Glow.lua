@@ -42,6 +42,8 @@ local function update(entry)
     end
 
     local wanted = selectedOwner ~= nil
+    local request = selectedOwner and entry.owners[selectedOwner]
+    local startAnim = not request or request.startAnim
     local style = selectedOwner and ownerStyles[selectedOwner]
     local color = appearanceColor
     if style then
@@ -53,9 +55,16 @@ local function update(entry)
             entry.frame:Show()
         end
 
-        if not entry.active or not sameColor(entry.color, color) then
+        local animationChanged = entry.startAnim ~= startAnim
+        if entry.active and animationChanged and not startAnim then
+            -- Restart through the public library API to cancel any in-flight
+            -- startup flash and go directly to the loop. This occurs once.
+            library.ProcGlow_Stop(entry.frame, glowKey)
+        end
+
+        if not entry.active or animationChanged or not sameColor(entry.color, color) then
             -- Updating the shown effect changes tint without replaying OnShow.
-            library.ProcGlow_Start(entry.frame, { key = glowKey, startAnim = true, color = color })
+            library.ProcGlow_Start(entry.frame, { key = glowKey, startAnim = startAnim, color = color })
         end
     elseif entry.active then
         library.ProcGlow_Stop(entry.frame, glowKey)
@@ -64,6 +73,7 @@ local function update(entry)
 
     entry.active = wanted
     entry.color = color
+    entry.startAnim = startAnim
 end
 
 local function copyColor(color)
@@ -109,7 +119,7 @@ function Glow.Prepare(button)
     return entry
 end
 
-function Glow.Set(button, owner, active)
+function Glow.Set(button, owner, active, options)
     local entry = entries[button]
     if not entry and active then
         entry = Glow.Prepare(button)
@@ -119,7 +129,7 @@ function Glow.Set(button, owner, active)
         return
     end
 
-    entry.owners[owner] = active and true or nil
+    entry.owners[owner] = active and { startAnim = not options or options.startAnim ~= false } or nil
     update(entry)
 end
 

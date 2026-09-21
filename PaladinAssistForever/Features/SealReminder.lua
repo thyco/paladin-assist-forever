@@ -79,7 +79,9 @@ function feature:Refresh()
     end
 
     local show = button:IsVisible() and addon.Client.HasGlowContext() and self.timer:IsDue()
-    addon.Glow.Set(button, self.owner, show)
+    local combat = UnitAffectingCombat("player")
+    local flash = addon.Client.Readable(combat) and not not combat
+    addon.Glow.Set(button, self.owner, show, { startAnim = flash })
 end
 
 function feature:Stop()

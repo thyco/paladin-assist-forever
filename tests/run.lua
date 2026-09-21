@@ -1050,5 +1050,36 @@ test('combat exit hides Holy Strike but retains due seal with attackable target'
     unitPresence = {}
 end)
 
+test('seal starts without flash outside combat and flashes on a fresh combat activation', function()
+    local instance, events, cast, tick = contextFixture()
+    unitPresence.target = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[ActionButton2].procStartAnimation, false)
+    playerInCombat = true
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    cast(3)
+    tick(127)
+
+    equal(overlays[ActionButton2].procStartAnimation, true)
+    equal(overlays[button].procStartAnimation, true)
+    unitPresence = {}
+end)
+test('leaving combat switches a visible seal glow to no-flash mode', function()
+    local instance, events = contextFixture()
+    unitPresence.target = true
+    playerInCombat = true
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    equal(overlays[ActionButton2].procStartAnimation, true)
+
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+
+    equal(overlays[ActionButton2].visible, true)
+    equal(overlays[ActionButton2].procStartAnimation, false)
+    equal(overlays[button].visible, false)
+    unitPresence = {}
+end)
+
 print(string.format('\n%d passed; %d failed', passed, failed))
 os.exit(failed == 0 and 0 or 1)
