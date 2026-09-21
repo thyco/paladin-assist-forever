@@ -9,6 +9,7 @@ local defaults = {
     glowNativeColor = true,
     glowColor = "ff00e633",
     sealGlowEnabled = true,
+    sealReminderSeconds = 26,
     sealBar = 0,
     sealButton = 1,
     sealGlowColor = "ffff0000",
@@ -23,6 +24,10 @@ local function validValue(key, value)
 
     if key == "glowColor" or key == "sealGlowColor" then
         return #value == 8 and value:match("^%x+$") ~= nil
+    end
+
+    if key == "sealReminderSeconds" then
+        return value >= 1 and value <= 30 and value == math.floor(value)
     end
 
     if key == "sealBar" or key == "holyStrikeBar" then

@@ -25,6 +25,7 @@ local seals = {
 }
 
 function feature:ApplySettings()
+    self.timer:SetDuration(addon.Config.Get("sealReminderSeconds"))
     addon.Glow.ConfigureOwner(self.owner, { color = addon.Config.GetColor("sealGlowColor"), priority = 10 })
 end
 
@@ -63,7 +64,7 @@ function feature:OnEvent(event, unit, castGUID, spellID)
     end
 
     if name and seals[name] then
-        self.timer:Start(27)
+        self.timer:Start(addon.Config.Get("sealReminderSeconds"))
     end
 end
 

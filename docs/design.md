@@ -49,3 +49,8 @@ Both current features now use one explicitly selected default bar/button. Holy S
 ## Bordered settings groups (0.6.1)
 
 The native AddOns category now uses a scrollable canvas with two bordered sections: Holy Strike / Judgement and Seal reminder. Each contains the existing toggle, manual bar/button selection and color controls. Reusable SettingsWidgets helpers own group borders, text, checkboxes, dropdowns and color picking. Existing proxy setting names, defaults and saved keys remain unchanged. Every change refreshes controls through Config subscriptions; reopening the panel refreshes them again. Color-picker cancellation restores the exact prior saved color without changing native-color mode. The actual WoW layout still needs in-client visual confirmation.
+
+
+## Configurable seal reminder delay (0.6.2)
+
+`sealReminderSeconds` defaults to 26 and accepts whole seconds from 1–30. A Remind after dropdown sits inside the Seal reminder group. Changing it recomputes the existing timer from its last successful seal cast via reusable `timer:SetDuration(seconds)`, including while disabled. An unknown or cleared timer stays due until a seal is observed. Existing installations pick up 26 seconds; saved user choices survive reloads.

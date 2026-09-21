@@ -8,10 +8,19 @@ function Timers.New()
     local timer = {}
 
     function timer:Start(seconds)
-        self.deadline = GetTime() + seconds
+        self.startedAt = GetTime()
+        self.deadline = self.startedAt + seconds
+    end
+
+    -- Recalculate from the observed event, never from the settings change.
+    function timer:SetDuration(seconds)
+        if self.startedAt then
+            self.deadline = self.startedAt + seconds
+        end
     end
 
     function timer:Clear()
+        self.startedAt = nil
         self.deadline = nil
     end
 

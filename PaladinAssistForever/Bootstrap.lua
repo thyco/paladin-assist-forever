@@ -71,7 +71,7 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
     end
 
     local version, build, _, interface = GetBuildInfo()
-    print("Paladin Assist Forever 0.6.1 | client " .. version .. " (" .. build .. ") | interface " .. interface)
+    print("Paladin Assist Forever 0.6.2 | client " .. version .. " (" .. build .. ") | interface " .. interface)
     if not addon.started then
         print("Paladin features are inactive on this character.")
         return

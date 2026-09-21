@@ -67,7 +67,7 @@ function panel:Initialize()
     scroll:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, -8)
     scroll:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -28, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(580, 586)
+    content:SetSize(580, 622)
     scroll:SetScrollChild(content)
     scroll:SetScript("OnSizeChanged", function(_, width)
         content:SetWidth(math.max(1, width))
@@ -76,7 +76,7 @@ function panel:Initialize()
     widgets.Text(content, "Paladin Assist Forever", 8, -8, "GameFontNormalLarge")
     widgets.Text(content, "Choose one button for each reminder. Changes apply immediately.", 8, -34)
     local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · either spell off cooldown", -64, 270)
-    local seal = widgets.Section(content, "Seal reminder", "Combat or an attackable target / mouseover · refresh after 27 seconds", -350, 220)
+    local seal = widgets.Section(content, "Seal reminder", "Combat or an attackable target / mouseover", -350, 256)
     self.sections = { holy, seal }
 
     checkbox(holy, "cooldownGlowEnabled", "PaladinAssistForever_CooldownGlowEnabled",
@@ -89,9 +89,19 @@ function panel:Initialize()
         "Applies when Use Blizzard native glow is unchecked. Cancel restores the previous color.")
 
     checkbox(seal, "sealGlowEnabled", "PaladinAssistForever_SealGlowEnabled", "Enable seal reminder", -62,
-        "Reminds after 27 seconds. After reload it assumes a refresh is due until a seal cast is observed. Does not detect dispels.")
+        "Reminds after your selected delay. After reload it assumes a refresh is due until a seal cast is observed. Does not detect dispels.")
     buttonSelector(seal, "seal", "Seal", "Seal reminder")
-    color(seal, "sealGlowColor", "PaladinAssistForever_SealGlowColor", "Glow color", -180,
+    local delays = {}
+    for seconds = 1, 30 do
+        delays[#delays + 1] = { value = seconds, label = seconds .. (seconds == 1 and " second" or " seconds") }
+    end
+
+    local delay = registerSetting("sealReminderSeconds", "PaladinAssistForever_SealReminderSeconds",
+        "Remind after", Settings.VarType.Number)
+    self.controls.sealReminderSeconds = widgets.Dropdown(seal, "Remind after", -172, delay, delays,
+        "Seconds after a successful seal cast (1–30). Default: 26, giving 4 seconds before the assumed 30-second expiry. Changes also apply to your current timer.")
+
+    color(seal, "sealGlowColor", "PaladinAssistForever_SealGlowColor", "Glow color", -216,
         "Red by default, independent of Holy Strike. Seal color takes priority if both reminders share a button.")
 
     canvas:SetScript("OnShow", function()

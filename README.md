@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.6.1 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.6.2 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and **Judgement OR Holy Strike is off cooldown**. The same button glows for both spells; a separate Judgement button is not highlighted.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.6.1.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.6.2.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -41,7 +41,7 @@ The panel has two bordered groups, **Holy Strike / Judgement** and **Seal remind
 
 In `/paf config`, check **Enable seal reminder** (enabled by default) inside the **Seal reminder** group, then choose its **Action bar** and **Button**. The default is **Not selected**, so nothing extra glows until you choose the target. Its **Glow color** defaults to red and is independent of the Holy Strike color.
 
-- A successful player seal cast starts a 27-second timer. At 27 seconds the chosen button glows, reminding you to refresh before the assumed 30-second buff expires. Casting any recognized seal again resets it immediately.
+- A successful player seal cast starts a timer. **Remind after** defaults to **26 seconds**, configurable from 1–30 seconds. At that time the chosen button glows, giving 4 seconds before the assumed 30-second expiry with the default. Changing the setting recalculates the current timer from the last cast; casting any recognized seal resets it.
 - New glows flash once in combat. Outside combat the seal glow starts directly in its loop. Entering combat does not reflash an existing glow; leaving combat cancels any unfinished flash.
 - The glow appears in combat or with an attackable target/mouseover unit. Casts while the reminder is hidden or disabled still update its timer. Losing the visibility condition hides the glow without resetting the timer.
 - This is a refresh estimate, not an aura check: it never reads buff data and cannot detect an early dispel or manual removal. After login/reload or death, it assumes a refresh is due until it observes another seal cast.
@@ -75,7 +75,7 @@ Every file receives the private addon namespace through `local _, addon = ...`. 
 | `Services/Buttons.lua` | `All()`, `FindSpell(spellName)`, `Bars()`, `Selected(bar, index)` | Enumerates default buttons and resolves current slots, including macros and paging. |
 | `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active, options)`, `ClearOwner(owner)`, `Configure(options)`, `ConfigureOwner(owner, options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
 | `Services/Cooldowns.lua` | `IsReady(spellID, cooldownEvent)`, `AnyReady(spellIDs, cooldownEvent)`, `Invalidate(spellID)` | Evaluates ordinary, non-charge spell cooldowns. `IsReady` returns true, false, or nil for unavailable data; `AnyReady` returns a boolean. |
-| `Services/Timers.lua` | `New()` → `Start(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
+| `Services/Timers.lua` | `New()` → `Start(seconds)`, `SetDuration(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
 | `Services/Config.lua` | `Initialize()`, `Get(key)`, `GetDefault(key)`, `GetColor(key)`, `Set(key, value)`, `Subscribe(listener)` | Saves typed defaults and preferences; notifies consumers when a setting changes. |
 | `Services/SettingsWidgets.lua` | `Section`, `Text`, `Checkbox`, `Dropdown`, `Color` | Reusable bordered settings groups and controls; setters use existing proxy settings. |
 | `SettingsPanel.lua` | `Initialize()`, `Open()` | Registers a scrollable canvas in the native AddOns category, with a bordered group for each reminder. |
@@ -130,7 +130,7 @@ In-game acceptance checks:
 - Log into a non-paladin; confirm no feature updates or glow.
 - Open `/paf config`; disable the glow while it is visible and confirm it disappears immediately. Reload and confirm the checkbox remains off. Enable it again and confirm readiness is reflected immediately.
 - With a glow active, uncheck **Use Blizzard native glow**, choose a custom color, and confirm it changes immediately without repeating the flash. Cancel a color change, restore native mode, and reload to verify saved appearance.
-- Choose your seal bar/button, cast a seal out of combat, enter combat, and confirm only the selected button turns red at 27 seconds. Cast another seal and confirm the glow disappears immediately. Repeat the cast in combat to check event visibility in your client.
+- Choose your seal bar/button, cast a seal out of combat, enter combat, and confirm only the selected button turns red at the configured delay (26 seconds by default). Cast another seal and confirm the glow disappears immediately. Repeat the cast in combat to check event visibility in your client.
 - Change the selected button and color, disable/re-enable the reminder, and confirm no leftover glow. Check the shared-button priority if you deliberately select the Holy Strike button.
 - Report `/paf` output and any Lua error if a beta API differs.
 
