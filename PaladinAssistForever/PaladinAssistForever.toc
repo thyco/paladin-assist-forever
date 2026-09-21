@@ -2,8 +2,12 @@
 ## Title: Paladin Assist Forever
 ## Notes: Reusable paladin helpers. Highlights Holy Strike in combat when either attack is off cooldown.
 ## Author: Paladin Assist Forever
-## Version: 0.2.1
+## Version: 0.4.0
+## OptionalDeps: LibCustomGlow-1.0
 ## SavedVariables: PaladinAssistForeverDB
+
+Libs/LibStub/LibStub.lua
+Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
 
 Core.lua
 Services/Config.lua

@@ -2,7 +2,7 @@
 
 Approved scope: paladin-only, default action bars, glow the Holy Strike macro button when Judgement OR Holy Strike is off cooldown. Ignore mana, range and target. Support the supplied #showtooltip holy strike /cast judgement /cast holy strike /startattack macro. Keep discovery and rendering reusable.
 
-Use separate Lua modules for client API adaptation, macro matching, default button discovery, owner-scoped glow rendering, cooldown evaluation, and the paladin rule. A small core starts registered features only for paladins. No external libraries or protected button changes.
+Use separate Lua modules for client API adaptation, macro matching, default button discovery, owner-scoped glow rendering, cooldown evaluation, and the paladin rule. A small core starts registered features only for paladins. No protected button changes. Rendering now uses bundled libraries as described in the 0.3.0 update below.
 
 Ignore the global cooldown when distinguishable from the spell cooldown. Unknown/unlearned spells never count as ready. Unreadable cooldowns return unknown; another readable, ready spell can still trigger the glow. Match exact spell names in simple /cast lines, not arbitrary substrings. Do not execute or rewrite macros. Match direct Holy Strike actions too. Duplicate placements each receive the glow.
 
@@ -17,3 +17,11 @@ A native AddOns settings category exposes an enabled-by-default cooldown glow ch
 ## Combat-only glow (0.2.1)
 
 The Holy Strike feature requests its glow only while `UnitAffectingCombat("player")` is true and either spell is ready. Combat entry and exit events trigger immediate refreshes. Cooldown event snapshots continue updating outside combat. Shared glow and cooldown services remain independent of this feature-specific visibility rule.
+
+## LibCustomGlow renderer (0.3.0)
+
+Bundle the LibStub minor 2 and LibCustomGlow minor 25 files from DK Force without modification, with upstream and distribution license notices. Load them before addon modules. Keep the Glow service API and ownership model; replace the static texture with a keyed native proc animation on the existing addon-owned frame. Start the animation only on inactive-to-active transitions, and stop/release it only when the final owner clears. No spell rules, combat conditions or settings defaults change.
+
+## Glow appearance settings (0.4.0)
+
+Rename the feature toggle to the requested "Holy strike glow on Holy strike and judgement". Match DK Force's single proc style with a Use Blizzard native glow toggle (default true) and a custom RGB color picker. Preserve existing enabled preferences and saved custom colors. Color selection does not silently toggle native mode, so cancel remains predictable. Store validated opaque ARGB hex strings compatible with native Settings color swatches. Core translates saved preferences into generic Glow.Configure options; the renderer updates active effects in place without restarting their initial animation.

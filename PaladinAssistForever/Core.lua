@@ -33,6 +33,13 @@ function addon:IsFeatureEnabled(feature)
 end
 
 function addon:ApplySettings()
+    local color
+    if not self.Config.Get("glowNativeColor") then
+        color = self.Config.GetColor("glowColor")
+    end
+
+    self.Glow.Configure({ color = color })
+
     for _, feature in ipairs(self.features) do
         if not self:IsFeatureEnabled(feature) and feature.Stop then
             feature:Stop()

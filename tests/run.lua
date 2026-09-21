@@ -15,6 +15,27 @@ local function equal(actual, expected)
     assert(actual == expected, 'expected ' .. tostring(expected) .. ', got ' .. tostring(actual))
 end
 
+-- Adapter tests simulate the external renderer; glow_integration.lua loads
+-- the actual bundled libraries against WoW frame/pool doubles.
+local glowLibrary = {
+    ProcGlow_Start = function(frame, options)
+        frame.procStarts = (frame.procStarts or 0) + 1
+        frame.procKey = options.key
+        frame.procStartAnimation = options.startAnim
+        frame.procColor = options.color
+        frame.procVisible = true
+    end,
+    ProcGlow_Stop = function(frame, key)
+        assert(key == frame.procKey, 'must stop the same keyed glow')
+        frame.procStops = (frame.procStops or 0) + 1
+        frame.procVisible = false
+    end,
+}
+_G.LibStub = function(name)
+    assert(name == 'LibCustomGlow-1.0')
+    return glowLibrary
+end
+
 local addon = {}
 local files = { 'Core', 'Services/Config', 'Services/Client', 'Services/Macros', 'Services/Buttons', 'Services/Glow', 'Services/Cooldowns', 'Features/HolyStrikeGlow' }
 for _, name in ipairs(files) do
@@ -251,16 +272,22 @@ end)
 
 -- WoW's native Settings UI drives the real addon getter/setter callbacks.
 local settingsControls = {}
+local settingsByVariable = {}
 local openedCategory
 _G.Settings = {
-    VarType = { Boolean = 'boolean' },
+    VarType = { Boolean = 'boolean', String = 'string' },
     RegisterVerticalLayoutCategory = function(name)
         return { GetID = function() return 42 end }
     end,
     RegisterProxySetting = function(category, variable, valueType, name, default, getter, setter)
-        return { GetValue = getter, SetValue = function(_, value) setter(value) end }
+        local setting = { GetValue = getter, SetValue = function(_, value) setter(value) end }
+        settingsByVariable[variable] = setting
+        return setting
     end,
     CreateCheckbox = function(category, setting)
+        settingsControls[#settingsControls + 1] = setting
+    end,
+    CreateColorSwatch = function(category, setting)
         settingsControls[#settingsControls + 1] = setting
     end,
     RegisterAddOnCategory = function() end,
@@ -272,7 +299,7 @@ local function loadBootstrap(class)
     _G.UnitClass = function() return class, class end
     _G.SlashCmdList = {}
     for line in io.lines('PaladinAssistForever/PaladinAssistForever.toc') do
-        if line:match('%.lua$') then
+        if line:match('%.lua$') and not line:match('^Libs/') then
             assert(loadfile('PaladinAssistForever/' .. line))('PaladinAssistForever', instance)
         end
     end
@@ -318,7 +345,7 @@ test('settings checkbox disables glow immediately and polling keeps it off', fun
     cooldowns = { [1] = ready(), [2] = ready() }
     local instance, events = loadBootstrap('PALADIN')
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
-    local checkbox = settingsControls[#settingsControls]
+    local checkbox = settingsByVariable.PaladinAssistForever_CooldownGlowEnabled
 
     checkbox:SetValue(false)
 
@@ -335,7 +362,7 @@ test('disabled preference survives a reload', function()
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
 
     equal(instance.Config.Get('cooldownGlowEnabled'), false)
-    equal(settingsControls[#settingsControls]:GetValue(), false)
+    equal(settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:GetValue(), false)
     equal(_G.PaladinAssistForeverDB.futureOption, 'keep')
     equal(overlays[button].visible, false)
 end)
@@ -347,7 +374,7 @@ test('re-enabling discovers moved macro and refreshes immediately', function()
     button.action = 2
     _G.ActionButton2.action = 1
 
-    settingsControls[#settingsControls]:SetValue(true)
+    settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(true)
 
     equal(overlays[_G.ActionButton2].visible, true)
     equal(overlays[button].visible, false)
@@ -361,7 +388,7 @@ test('disabling feature preserves glow owned by another feature', function()
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     instance.Glow.Set(button, 'other-feature', true)
 
-    settingsControls[#settingsControls]:SetValue(false)
+    settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(false)
 
     equal(overlays[button].visible, true)
     instance.Glow.ClearOwner('other-feature')
@@ -388,7 +415,7 @@ test('disabled at login can be enabled during combat', function()
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     _G.InCombatLockdown = function() return true end
 
-    settingsControls[#settingsControls]:SetValue(true)
+    settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(true)
     _G.InCombatLockdown = function() return false end
 
     equal(overlays[button] and overlays[button].visible, true)
@@ -400,11 +427,11 @@ test('re-enabling discards readiness cached before disabling', function()
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
     equal(overlays[button].visible, true)
-    settingsControls[#settingsControls]:SetValue(false)
+    settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(false)
     cooldowns = { [1] = cooling(), [2] = cooling() }
     events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
 
-    settingsControls[#settingsControls]:SetValue(true)
+    settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(true)
 
     equal(overlays[button].visible, false)
 end)
@@ -455,7 +482,7 @@ test('enabling setting outside combat waits until combat starts', function()
     local instance, events = loadBootstrap('PALADIN')
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
 
-    settingsControls[#settingsControls]:SetValue(true)
+    settingsByVariable.PaladinAssistForever_CooldownGlowEnabled:SetValue(true)
 
     equal(overlays[button].visible, false)
 end)
@@ -470,6 +497,121 @@ test('entering combat respects the disabled setting', function()
     events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
 
     equal(overlays[button].visible, false)
+end)
+
+test('proc animation starts once while multiple owners keep glow active', function()
+    local target = { GetFrameLevel = function() return 1 end }
+
+    addon.Glow.Set(target, 'first', true)
+    addon.Glow.Set(target, 'first', true)
+    addon.Glow.Set(target, 'second', true)
+    addon.Glow.Set(target, 'first', false)
+
+    equal(overlays[target].procStarts, 1)
+    equal(overlays[target].procStartAnimation, true)
+    equal(overlays[target].procColor, nil)
+    equal(overlays[target].procVisible, true)
+    equal(overlays[target].procStops, nil)
+
+    addon.Glow.Set(target, 'second', false)
+    equal(overlays[target].procStops, 1)
+    equal(overlays[target].procVisible, false)
+    equal(overlays[target].visible, false)
+end)
+test('a new glow activation restarts proc effect on the same overlay', function()
+    local target = { GetFrameLevel = function() return 1 end }
+    addon.Glow.Set(target, 'test', true)
+    local overlay = overlays[target]
+
+    addon.Glow.Set(target, 'test', false)
+    addon.Glow.Set(target, 'test', true)
+
+    equal(overlays[target], overlay)
+    equal(overlay.procStarts, 2)
+    equal(overlay.procVisible, true)
+    addon.Glow.ClearOwner('test')
+end)
+
+test('upgrade preserves disabled setting and defaults to native glow', function()
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = false }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('cooldownGlowEnabled'), false)
+    equal(instance.Config.Get('glowNativeColor'), true)
+    equal(instance.Config.Get('glowColor'), 'ff00e633')
+end)
+test('custom color and native mode update an already active glow', function()
+    playerInCombat = true
+    _G.PaladinAssistForeverDB = nil
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events = loadBootstrap('PALADIN')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    local overlay = overlays[button]
+
+    settingsByVariable.PaladinAssistForever_GlowColor:SetValue('00ff0000')
+    equal(overlay.procColor, nil)
+    settingsByVariable.PaladinAssistForever_GlowNativeColor:SetValue(false)
+
+    equal(overlay.procColor[1], 1)
+    equal(overlay.procColor[2], 0)
+    equal(overlay.procColor[3], 0)
+    equal(overlay.procColor[4], 1)
+    equal(overlay.procVisible, true)
+    equal(instance.Config.Get('glowColor'), 'ffff0000')
+
+    settingsByVariable.PaladinAssistForever_GlowNativeColor:SetValue(true)
+    equal(overlay.procColor, nil)
+    equal(overlay.procVisible, true)
+    equal(instance.Config.Get('glowColor'), 'ffff0000')
+end)
+test('saved custom appearance survives a reload', function()
+    playerInCombat = true
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = true, glowNativeColor = false, glowColor = 'ff0000ff' }
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(overlays[button].procColor[1], 0)
+    equal(overlays[button].procColor[2], 0)
+    equal(overlays[button].procColor[3], 1)
+end)
+test('color picker cancel restores prior custom color', function()
+    playerInCombat = true
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = true, glowNativeColor = false, glowColor = 'ff0000ff' }
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events = loadBootstrap('PALADIN')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    local picker = settingsByVariable.PaladinAssistForever_GlowColor
+    local previous = picker:GetValue()
+
+    picker:SetValue('00ff0000')
+    picker:SetValue(previous)
+
+    equal(overlays[button].procColor[3], 1)
+    equal(overlays[button].procColor[1], 0)
+    equal(instance.Config.Get('glowNativeColor'), false)
+end)
+test('invalid saved color recovers to a valid default', function()
+    _G.PaladinAssistForeverDB = { glowNativeColor = false, glowColor = 'invalid' }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('glowColor'), 'ff00e633')
+end)
+test('appearance changes do not enable a disabled glow', function()
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = false }
+    local instance, events = loadBootstrap('PALADIN')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    settingsByVariable.PaladinAssistForever_GlowNativeColor:SetValue(false)
+    settingsByVariable.PaladinAssistForever_GlowColor:SetValue('ffff0000')
+
+    equal(overlays[button].visible, false)
+    equal(instance.Config.Get('cooldownGlowEnabled'), false)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
