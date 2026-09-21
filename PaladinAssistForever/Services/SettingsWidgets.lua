@@ -84,13 +84,20 @@ function Widgets.Dropdown(parent, label, y, setting, options, tooltip)
 
     dropdown.refresh = function()
         local value = setting:GetValue()
+        -- SetSelectedValue also refreshes the globally shared popup, which
+        -- may contain another dropdown's options (e.g. seconds instead of bars).
+        -- Store this frame's selection without touching that popup; its own
+        -- initializer rebuilds checkmarks whenever the menu is opened.
+        dropdown.selectedName = nil
+        dropdown.selectedID = nil
+        dropdown.selectedValue = value
+
         for _, option in ipairs(options) do
             if option.value == value then
                 UIDropDownMenu_SetText(dropdown, option.label)
                 break
             end
         end
-        UIDropDownMenu_SetSelectedValue(dropdown, value)
     end
     return dropdown
 end

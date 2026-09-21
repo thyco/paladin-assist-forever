@@ -54,3 +54,8 @@ The native AddOns category now uses a scrollable canvas with two bordered sectio
 ## Configurable seal reminder delay (0.6.2)
 
 `sealReminderSeconds` defaults to 26 and accepts whole seconds from 1–30. A Remind after dropdown sits inside the Seal reminder group. Changing it recomputes the existing timer from its last successful seal cast via reusable `timer:SetDuration(seconds)`, including while disabled. An unknown or cleared timer stays due until a seal is observed. Existing installations pick up 26 seconds; saved user choices survive reloads.
+
+
+## Dropdown label isolation (0.6.3)
+
+The legacy dropdown selection setter refreshes the globally shared popup and can overwrite unrelated dropdown captions using matching numeric values from that popup. Widget refresh now stores selection fields on its own frame and derives the caption exclusively from its own options. Its initializer supplies the correct checkmarks when opened. Tests model the shared popup and reproduce bar labels incorrectly becoming seconds before this fix; they also check that refreshing other controls does not change an open menu's checkmarks. Saved configuration is unaffected.

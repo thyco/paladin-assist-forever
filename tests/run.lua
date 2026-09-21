@@ -342,11 +342,26 @@ _G.Settings = {
 
 local menuItems = {}
 _G.UIDropDownMenu_SetWidth = function(frame, width) frame.menuWidth = width end
-_G.UIDropDownMenu_Initialize = function(frame, callback) frame.menuInitializer = callback end
+_G.UIDropDownMenu_Initialize = function(frame, callback)
+    frame.menuInitializer = callback
+    menuItems = {}
+    callback()
+end
 _G.UIDropDownMenu_CreateInfo = function() return {} end
 _G.UIDropDownMenu_AddButton = function(info) menuItems[#menuItems + 1] = info end
 _G.UIDropDownMenu_SetText = function(frame, text) frame.menuText = text end
-_G.UIDropDownMenu_SetSelectedValue = function(frame, value) frame.selectedValue = value end
+-- Blizzard refreshes labels/checks using the last shared popup menu, even
+-- when SetSelectedValue is called on a different dropdown frame.
+_G.UIDropDownMenu_SetSelectedValue = function(frame, value)
+    frame.selectedValue = value
+    frame.menuText = 'Custom'
+    for _, item in ipairs(menuItems) do
+        item.checked = item.value == value
+        if item.checked then
+            frame.menuText = item.text
+        end
+    end
+end
 _G.ColorPickerFrame = {
     SetupColorPickerAndShow = function(self, options) self.options = options end,
     GetColorRGB = function() return 1, 0, 0 end,
@@ -1272,6 +1287,48 @@ test('invalid saved seal duration defaults to 26 and cannot be set out of range'
     equal(pcall(instance.Config.Set, 'sealReminderSeconds', 0), false)
     equal(pcall(instance.Config.Set, 'sealReminderSeconds', 2.5), false)
     equal(instance.Config.Get('sealReminderSeconds'), 26)
+end)
+
+test('dropdown captions stay independent of the shared seconds popup', function()
+    _G.PaladinAssistForeverDB = { holyStrikeBar = 2, holyStrikeButton = 4,
+        sealBar = 1, sealButton = 7, sealReminderSeconds = 26 }
+    local instance, events = loadBootstrap('PALADIN', true)
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    local controls = instance.SettingsPanel.controls
+
+    equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
+    equal(controls.holyStrikeButton.menuText, 'Button 4')
+    equal(controls.sealBar.menuText, 'Main bar')
+    equal(controls.sealButton.menuText, 'Button 7')
+    equal(controls.sealReminderSeconds.menuText, '26 seconds')
+
+    menuItems = {}
+    controls.sealReminderSeconds.menuInitializer()
+    menuItems[24].func()
+    instance.SettingsPanel.canvas.scripts.OnShow()
+
+    equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
+    equal(controls.holyStrikeButton.menuText, 'Button 4')
+    equal(controls.sealBar.menuText, 'Main bar')
+    equal(controls.sealButton.menuText, 'Button 7')
+    equal(controls.sealReminderSeconds.menuText, '24 seconds')
+    equal(instance.Config.Get('holyStrikeBar'), 2)
+end)
+test('refreshing other settings does not change the open menu checkmarks', function()
+    _G.PaladinAssistForeverDB = { holyStrikeBar = 2, sealReminderSeconds = 26 }
+    local instance, events = loadBootstrap('PALADIN', true)
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+    local controls = instance.SettingsPanel.controls
+    menuItems = {}
+    controls.holyStrikeBar.menuInitializer()
+    equal(menuItems[3].checked, true)
+
+    instance.Config.Set('sealReminderSeconds', 24)
+
+    equal(menuItems[3].checked, true)
+    equal(menuItems[2].checked, false)
+    equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
+    equal(controls.sealReminderSeconds.menuText, '24 seconds')
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
