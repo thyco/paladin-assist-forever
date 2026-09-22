@@ -728,12 +728,12 @@ local function sealFixture(settings)
     return instance, events, cast, tick, overlays[ActionButton2]
 end
 
-test('seal defaults enabled and red but needs an explicit target', function()
+test('seal defaults enabled and red on bottom right bar', function()
     local instance = sealFixture({ cooldownGlowEnabled = false })
 
     equal(instance.Config.Get('sealGlowEnabled'), true)
     equal(instance.Config.Get('sealGlowColor'), 'ffff0000')
-    equal(instance.Config.Get('sealBar'), 0)
+    equal(instance.Config.Get('sealBar'), 3)
     equal(overlays[ActionButton1].visible, false)
     equal(overlays[ActionButton2].visible, false)
 end)
@@ -887,8 +887,8 @@ end)
 test('invalid saved button selection and seal color recover safely', function()
     local instance = sealFixture({ cooldownGlowEnabled = false, sealBar = 9, sealButton = 1.5, sealGlowColor = 'bad' })
 
-    equal(instance.Config.Get('sealBar'), 0)
-    equal(instance.Config.Get('sealButton'), 1)
+    equal(instance.Config.Get('sealBar'), 3)
+    equal(instance.Config.Get('sealButton'), 4)
     equal(instance.Config.Get('sealGlowColor'), 'ffff0000')
 end)
 test('button selector exposes supported bars and twelve positions', function()
@@ -1144,7 +1144,7 @@ test('leaving combat switches a visible seal glow to no-flash mode', function()
     unitPresence = {}
 end)
 
-test('Holy Strike upgrade requires selection and preserves existing appearance', function()
+test('Holy Strike upgrade supplies bottom right selection and preserves appearance', function()
     _G.PaladinAssistForeverDB = { glowNativeColor = false, glowColor = 'ff0000ff' }
     cooldowns = { [1] = ready(), [2] = ready() }
     playerInCombat = true
@@ -1152,8 +1152,8 @@ test('Holy Strike upgrade requires selection and preserves existing appearance',
 
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
 
-    equal(instance.Config.Get('holyStrikeBar'), 0)
-    equal(instance.Config.Get('holyStrikeButton'), 1)
+    equal(instance.Config.Get('holyStrikeBar'), 3)
+    equal(instance.Config.Get('holyStrikeButton'), 3)
     equal(instance.Config.Get('glowColor'), 'ff0000ff')
     equal(overlays[button].visible, false)
     equal(overlays[ActionButton2].visible, false)
@@ -1190,14 +1190,14 @@ test('Holy Strike selection persists and hidden selected buttons do not glow', f
     equal(overlays[ActionButton2].visible, false)
     equal(instance.Config.Get('holyStrikeButton'), 2)
 end)
-test('invalid Holy Strike selection falls back to no bar and first button', function()
+test('invalid Holy Strike selection falls back to bottom right button three', function()
     _G.PaladinAssistForeverDB = { holyStrikeBar = 99, holyStrikeButton = 0 }
     local instance, events = loadBootstrap('PALADIN', true)
 
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
 
-    equal(instance.Config.Get('holyStrikeBar'), 0)
-    equal(instance.Config.Get('holyStrikeButton'), 1)
+    equal(instance.Config.Get('holyStrikeBar'), 3)
+    equal(instance.Config.Get('holyStrikeButton'), 3)
     equal(#instance.SettingsPanel.controls.holyStrikeBar.options, 9)
     equal(#instance.SettingsPanel.controls.holyStrikeButton.options, 12)
 end)
@@ -1329,6 +1329,30 @@ test('refreshing other settings does not change the open menu checkmarks', funct
     equal(menuItems[2].checked, false)
     equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
     equal(controls.sealReminderSeconds.menuText, '24 seconds')
+end)
+
+test('lost saved settings restore bottom right buttons three and four', function()
+    _G.PaladinAssistForeverDB = nil
+    playerInCombat = true
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local holy = { GetFrameLevel = function() return 1 end, IsVisible = function() return true end }
+    local seal = { GetFrameLevel = function() return 1 end, IsVisible = function() return true end }
+    _G.MultiBarBottomRightButton3 = holy
+    _G.MultiBarBottomRightButton4 = seal
+    local instance, events = loadBootstrap('PALADIN', true)
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.HolyStrikeGlow.button, holy)
+    equal(instance.SealReminder.button, seal)
+    equal(overlays[holy].visible, true)
+    equal(overlays[seal].visible, true)
+    equal(instance.SettingsPanel.controls.holyStrikeBar.menuText, 'Bottom right bar')
+    equal(instance.SettingsPanel.controls.holyStrikeButton.menuText, 'Button 3')
+    equal(instance.SettingsPanel.controls.sealBar.menuText, 'Bottom right bar')
+    equal(instance.SettingsPanel.controls.sealButton.menuText, 'Button 4')
+    _G.MultiBarBottomRightButton3 = nil
+    _G.MultiBarBottomRightButton4 = nil
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))

@@ -4,14 +4,14 @@ addon.Config = Config
 
 local defaults = {
     cooldownGlowEnabled = true,
-    holyStrikeBar = 0,
-    holyStrikeButton = 1,
+    holyStrikeBar = 3,
+    holyStrikeButton = 3,
     glowNativeColor = true,
     glowColor = "ff00e633",
     sealGlowEnabled = true,
     sealReminderSeconds = 26,
-    sealBar = 0,
-    sealButton = 1,
+    sealBar = 3,
+    sealButton = 4,
     sealGlowColor = "ffff0000",
 }
 local values
