@@ -80,7 +80,7 @@ function panel:Initialize()
     widgets.Text(content, "Paladin Assist Forever", 52, -8, "GameFontNormalLarge")
     widgets.Text(content, "Choose one button for each reminder. Changes apply immediately.", 52, -34)
     local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · either spell off cooldown", -64, 270)
-    local seal = widgets.Section(content, "Seal reminder", "Combat or an attackable target / mouseover", -350, 256)
+    local seal = widgets.Section(content, "Seal reminder", "Combat or a living attackable target / mouseover", -350, 256)
     self.sections = { holy, seal }
 
     checkbox(holy, "cooldownGlowEnabled", "PaladinAssistForever_CooldownGlowEnabled",

@@ -174,7 +174,9 @@ local function texture()
 end
 local unitPresence = {}
 local unitAttackable = {}
+local unitDead = {}
 _G.UnitExists = function(unit) return unitPresence[unit] end
+_G.UnitIsDeadOrGhost = function(unit) return unitDead[unit] or false end
 _G.UnitCanAttack = function(player, unit)
     assert(player == 'player')
     return unitAttackable[unit]
@@ -952,6 +954,7 @@ test('manual bar selection resolves each default bar without spell lookup', func
 end)
 
 local function contextFixture()
+    unitDead = {}
     unitPresence = {}
     unitAttackable = { target = true, mouseover = true }
     cooldowns = { [1] = ready(), [2] = ready() }
@@ -1353,6 +1356,55 @@ test('lost saved settings restore bottom right buttons three and four', function
     equal(instance.SettingsPanel.controls.sealButton.menuText, 'Button 4')
     _G.MultiBarBottomRightButton3 = nil
     _G.MultiBarBottomRightButton4 = nil
+end)
+
+test('dead enemy target stops seal glow outside combat on polling', function()
+    local instance, events, cast, tick = contextFixture()
+    unitPresence.target = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[ActionButton2].visible, true)
+
+    unitDead.target = true
+    tick(101)
+
+    equal(overlays[ActionButton2].visible, false)
+    equal(overlays[button].visible, false)
+end)
+test('dead enemy mouseover does not trigger seal but a living target does', function()
+    local instance, events = contextFixture()
+    unitPresence.mouseover = true
+    unitDead.mouseover = true
+
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+
+    equal(overlays[ActionButton2].visible, false)
+    unitPresence.target = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[ActionButton2].visible, true)
+end)
+test('dead target permits living mouseover and does not suppress combat reminders', function()
+    local instance, events = contextFixture()
+    unitPresence.target = true
+    unitDead.target = true
+    unitPresence.mouseover = true
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(overlays[ActionButton2].visible, true)
+
+    unitDead.mouseover = true
+    playerInCombat = true
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+
+    equal(overlays[ActionButton2].visible, true)
+    equal(overlays[button].visible, true)
+end)
+test('unreadable death state cannot trigger an out of combat seal glow', function()
+    local instance, events = contextFixture()
+    unitPresence.target = true
+    unitDead.target = secret
+
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[ActionButton2].visible, false)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
