@@ -94,10 +94,15 @@ function Client.Action(slot)
 end
 
 -- Use attackability rather than reaction: neutral units that the player can
--- attack also qualify. Check readability before branching on client values.
+-- attack also qualify, but corpses do not. Guard client values before branching.
 function Client.CanAttack(unit)
     local exists = UnitExists(unit)
     if not Client.Readable(exists) or not exists then
+        return false
+    end
+
+    local dead = UnitIsDeadOrGhost(unit)
+    if not Client.Readable(dead) or dead then
         return false
     end
 
