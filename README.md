@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.7.1 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and **Judgement is off cooldown**, or **Holy Strike is off cooldown when its check is enabled**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.7.2 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and **Judgement is off cooldown**, or **Holy Strike is off cooldown when its check is enabled**. The same button glows for both spells; a separate Judgement button is not highlighted.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.7.1.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.7.2.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -29,9 +29,9 @@ Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 The panel has two bordered groups, **Holy Strike / Judgement** and **Seal reminder**. Each contains its own enable toggle, bar/button selectors and color controls. Scroll when needed; changes apply immediately and existing saved preferences are retained.
 
 - **Holy strike glow on Holy strike and judgement** is checked by default. Its default position is **Bottom right bar → Button 3**; you can change it below the checkbox.
-- **Check Holy Strike** is off by default. Enable it to let Holy Strike readiness trigger the same selected button.
-- **Holy Strike: Blizzard native glow** is off by default, with a green custom color selected. **Judgement: Blizzard native glow** is on by default. Each spell has its own color controls, and saved choices remain unchanged on upgrade.
-- Uncheck a spell's native option, then choose its color below. Judgement's appearance takes priority whenever it is ready, including when Holy Strike is also ready. For example, enable Holy Strike checking, set Judgement to red, and leave Holy Strike green: both ready means red; only Holy Strike ready means green.
+- **Check Holy Strike** is on by default. Uncheck it if you want only Judgement readiness to trigger the selected button.
+- **Holy Strike: Blizzard native glow** is off by default, with a teal custom color selected (`#00BFA5`). **Judgement: Blizzard native glow** is on by default. Each spell has its own color controls, and saved choices remain unchanged on upgrade.
+- Uncheck a spell's native option, then choose its color below. Judgement's appearance takes priority whenever it is ready, including when Holy Strike is also ready. For example, set Judgement to red and leave Holy Strike teal: both ready means red; only Holy Strike ready means teal.
 - Color changes update active glows immediately without replaying the flash. Cancel restores the previous custom color.
 - You can choose a custom color while native mode is enabled; it is saved for later. Switching back to native retains that custom color.
 - Unchecking the feature toggle immediately removes this feature's glow and stops its cooldown/button checks.
@@ -125,13 +125,13 @@ In-game acceptance checks:
 - Enable Lua errors with `/console scriptErrors 1`, then `/reload`.
 - In combat, check that each newly activated glow flashes once, then loops without repeated startup flashes.
 - With both attacks ready outside combat, confirm Holy Strike stays dark even with an attackable target or mouseover. Enter combat and confirm it glows; leave combat and confirm it clears. A due seal reminder should still glow outside combat with an attackable target/mouseover, and clear when neither qualifies.
-- Put both spells on cooldown; confirm the glow disappears. When Judgement finishes first, confirm the button glows again. Enable **Check Holy Strike** to confirm Holy Strike can also trigger it.
+- Put both spells on cooldown; confirm the glow disappears. When Judgement finishes first, confirm the button glows again. Confirm Holy Strike can also trigger it when it finishes first.
 - In combat, check with no target, out of range and without enough mana. After combat the Holy Strike glow must remain hidden regardless of target, mouseover or readiness.
 - Trigger only the global cooldown while both tracked abilities are otherwise ready; confirm no flicker where the client exposes the distinction.
 - Move the macro or change bar pages; confirm the glow remains on the selected physical position. Change the selector to the new position and confirm the old glow clears immediately. Reload and confirm the selection persists.
 - Log into a non-paladin; confirm no feature updates or glow.
 - Open `/paf config`; disable the glow while it is visible and confirm it disappears immediately. Reload and confirm the checkbox remains off. Enable it again and confirm readiness is reflected immediately.
-- Enable **Check Holy Strike** and set Judgement to custom red. In combat, both ready should show red; only Holy Strike ready should show green. Swap each native/custom option and confirm changes apply immediately without repeating the flash. Cancel a color change and reload to verify saved appearance.
+- Set Judgement to custom red. In combat, both ready should show red; only Holy Strike ready should show teal. Swap each native/custom option and confirm changes apply immediately without repeating the flash. Cancel a color change and reload to verify saved appearance.
 - Uncheck **Check Holy Strike**: only Judgement readiness should trigger the glow, even when Holy Strike is ready. Re-enable it and confirm Holy Strike can trigger the glow again.
 - Choose your seal bar/button, cast a seal out of combat, enter combat, and confirm only the selected button turns red at the configured delay (26 seconds by default). Cast another seal and confirm the glow disappears immediately. Repeat the cast in combat to check event visibility in your client.
 - Change the selected button and color, disable/re-enable the reminder, and confirm no leftover glow. Check the shared-button priority if you deliberately select the Holy Strike button.
