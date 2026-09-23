@@ -6,7 +6,10 @@ local defaults = {
     cooldownGlowEnabled = true,
     holyStrikeBar = 3,
     holyStrikeButton = 3,
-    glowNativeColor = true,
+    holyStrikeCheckEnabled = false,
+    judgementNativeColor = true,
+    judgementGlowColor = "ffff0000",
+    glowNativeColor = false,
     glowColor = "ff00e633",
     sealGlowEnabled = true,
     sealReminderSeconds = 26,
@@ -22,7 +25,7 @@ local function validValue(key, value)
         return false
     end
 
-    if key == "glowColor" or key == "sealGlowColor" then
+    if key == "glowColor" or key == "judgementGlowColor" or key == "sealGlowColor" then
         return #value == 8 and value:match("^%x+$") ~= nil
     end
 
@@ -40,7 +43,7 @@ local function validValue(key, value)
 end
 
 local function normalize(key, value)
-    if key == "glowColor" or key == "sealGlowColor" then
+    if key == "glowColor" or key == "judgementGlowColor" or key == "sealGlowColor" then
         -- The native RGB picker can return a zero alpha byte. Glow opacity is
         -- always opaque; only RGB is configurable.
         return "ff" .. value:sub(3):lower()
@@ -55,6 +58,7 @@ function Config.Initialize()
     end
 
     values = PaladinAssistForeverDB
+
     for key, default in pairs(defaults) do
         if not validValue(key, values[key]) then
             values[key] = default

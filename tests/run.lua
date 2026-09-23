@@ -417,9 +417,9 @@ test('non-paladin bootstrap registers no update loop', function()
     equal(next(events.events), nil)
 end)
 
-test('fresh settings default to enabled and show ready glow', function()
+test('fresh settings show ready Judgement glow with the feature enabled', function()
     _G.PaladinAssistForeverDB = nil
-    cooldowns = { [1] = ready(), [2] = cooling() }
+    cooldowns = { [1] = cooling(), [2] = ready() }
     local instance, events = loadBootstrap('PALADIN')
 
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
@@ -508,7 +508,7 @@ test('disabled at login can be enabled during combat', function()
     equal(overlays[button] and overlays[button].visible, true)
 end)
 test('re-enabling discards readiness cached before disabling', function()
-    _G.PaladinAssistForeverDB = nil
+    _G.PaladinAssistForeverDB = { holyStrikeCheckEnabled = true }
     cooldowns = { [1] = { startTime = 99, duration = 1.5, isEnabled = true, isActive = true, isOnGCD = true }, [2] = cooling() }
     local instance, events = loadBootstrap('PALADIN')
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
@@ -619,27 +619,27 @@ test('a new glow activation restarts proc effect on the same overlay', function(
     addon.Glow.ClearOwner('test')
 end)
 
-test('upgrade preserves disabled setting and defaults to native glow', function()
+test('upgrade preserves disabled setting and applies new spell defaults', function()
     _G.PaladinAssistForeverDB = { cooldownGlowEnabled = false }
     local instance, events = loadBootstrap('PALADIN')
 
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
 
     equal(instance.Config.Get('cooldownGlowEnabled'), false)
-    equal(instance.Config.Get('glowNativeColor'), true)
+    equal(instance.Config.Get('holyStrikeCheckEnabled'), false)
+    equal(instance.Config.Get('glowNativeColor'), false)
     equal(instance.Config.Get('glowColor'), 'ff00e633')
+    equal(instance.Config.Get('judgementNativeColor'), true)
 end)
 test('custom color and native mode update an already active glow', function()
     playerInCombat = true
-    _G.PaladinAssistForeverDB = nil
-    cooldowns = { [1] = ready(), [2] = ready() }
+    _G.PaladinAssistForeverDB = { holyStrikeCheckEnabled = true }
+    cooldowns = { [1] = ready(), [2] = cooling() }
     local instance, events = loadBootstrap('PALADIN')
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     local overlay = overlays[button]
 
     settingsByVariable.PaladinAssistForever_GlowColor:SetValue('00ff0000')
-    equal(overlay.procColor, nil)
-    settingsByVariable.PaladinAssistForever_GlowNativeColor:SetValue(false)
 
     equal(overlay.procColor[1], 1)
     equal(overlay.procColor[2], 0)
@@ -655,8 +655,9 @@ test('custom color and native mode update an already active glow', function()
 end)
 test('saved custom appearance survives a reload', function()
     playerInCombat = true
-    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = true, glowNativeColor = false, glowColor = 'ff0000ff' }
-    cooldowns = { [1] = ready(), [2] = ready() }
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = true, holyStrikeCheckEnabled = true,
+        glowNativeColor = false, glowColor = 'ff0000ff' }
+    cooldowns = { [1] = ready(), [2] = cooling() }
     local instance, events = loadBootstrap('PALADIN')
 
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
@@ -667,8 +668,9 @@ test('saved custom appearance survives a reload', function()
 end)
 test('color picker cancel restores prior custom color', function()
     playerInCombat = true
-    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = true, glowNativeColor = false, glowColor = 'ff0000ff' }
-    cooldowns = { [1] = ready(), [2] = ready() }
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = true, holyStrikeCheckEnabled = true,
+        glowNativeColor = false, glowColor = 'ff0000ff' }
+    cooldowns = { [1] = ready(), [2] = cooling() }
     local instance, events = loadBootstrap('PALADIN')
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     local picker = settingsByVariable.PaladinAssistForever_GlowColor
@@ -1405,6 +1407,166 @@ test('unreadable death state cannot trigger an out of combat seal glow', functio
     events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
 
     equal(overlays[ActionButton2].visible, false)
+end)
+
+test('Judgement color wins when both spells are ready then returns to Holy Strike', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    instance.Config.Set('judgementNativeColor', false)
+    instance.Config.Set('judgementGlowColor', 'ffff0000')
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    local overlay = overlays[button]
+    equal(overlay.procColor[1], 1)
+    equal(overlay.procColor[2], 0)
+    local stops = overlay.procStops
+
+    cooldowns[2] = cooling()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+
+    equal(overlay.procColor[2], 230 / 255)
+    equal(overlay.visible, true)
+    equal(overlay.procStops, stops)
+    instance.Config.Set('glowColor', 'ff0000ff')
+    equal(overlay.procColor[3], 1)
+    cooldowns[2] = ready()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlay.procColor[1], 1)
+    equal(overlay.procColor[3], 0)
+end)
+
+test('native Judgement takes precedence over custom Holy Strike', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    instance.Config.Set('glowNativeColor', false)
+    instance.Config.Set('glowColor', 'ff0000ff')
+    instance.Config.Set('judgementNativeColor', true)
+
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+
+    equal(overlays[button].procColor, nil)
+end)
+
+test('disabling Holy Strike stops its checks but leaves Judgement active', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    cooldowns = { [1] = ready(), [2] = cooling() }
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    equal(overlays[button].visible, true)
+
+    settingsByVariable.PaladinAssistForever_HolyStrikeCheckEnabled:SetValue(false)
+
+    equal(overlays[button].visible, false)
+    local original = instance.Cooldowns.IsReady
+    instance.Cooldowns.IsReady = function(id, event)
+        assert(id ~= 1, 'disabled Holy Strike must not be checked')
+        return original(id, event)
+    end
+    cooldowns[2] = ready()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[button].visible, true)
+    instance.Cooldowns.IsReady = original
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+    cooldowns[2] = cooling()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[button].visible, true)
+end)
+
+test('unknown Judgement does not mask ready Holy Strike or override its color', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    instance.Config.Set('judgementNativeColor', false)
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+    cooldowns[2] = nil
+
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+
+    equal(overlays[button].visible, true)
+    equal(overlays[button].procColor[2], 230 / 255)
+end)
+
+test('split settings preserve saved Judgement color and disabled Holy Strike', function()
+    _G.PaladinAssistForeverDB = { holyStrikeCheckEnabled = false,
+        judgementNativeColor = false, judgementGlowColor = '000000ff' }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('holyStrikeCheckEnabled'), false)
+    equal(instance.Config.Get('judgementNativeColor'), false)
+    equal(instance.Config.Get('judgementGlowColor'), 'ff0000ff')
+end)
+
+test('Holy Strike receives GCD snapshots while Judgement has priority', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+    cooldowns[1] = { startTime = secret, duration = secret, isActive = true, isOnGCD = true }
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+
+    cooldowns[1].isOnGCD = false
+    cooldowns[2] = cooling()
+    instance:Refresh(false)
+
+    equal(overlays[button].visible, true)
+end)
+
+test('reenabling Holy Strike cannot reuse a snapshot from before it was disabled', function()
+    local instance, events = contextFixture()
+    playerInCombat = true
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+    cooldowns[1] = { startTime = secret, duration = secret, isActive = true, isOnGCD = true }
+    cooldowns[2] = cooling()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[button].visible, true)
+
+    instance.Config.Set('holyStrikeCheckEnabled', false)
+    cooldowns[1].isOnGCD = false
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    instance.Config.Set('holyStrikeCheckEnabled', true)
+
+    equal(overlays[button].visible, false)
+end)
+
+test('fresh defaults show native Judgement and keep Holy Strike disabled', function()
+    playerInCombat = true
+    _G.PaladinAssistForeverDB = nil
+    cooldowns = { [1] = ready(), [2] = cooling() }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('cooldownGlowEnabled'), true)
+    equal(instance.Config.Get('holyStrikeCheckEnabled'), false)
+    equal(instance.Config.Get('glowNativeColor'), false)
+    equal(instance.Config.Get('glowColor'), 'ff00e633')
+    equal(instance.Config.Get('judgementNativeColor'), true)
+    equal(overlays[button].visible, false)
+
+    settingsByVariable.PaladinAssistForever_HolyStrikeCheckEnabled:SetValue(true)
+    equal(overlays[button].visible, true)
+    equal(overlays[button].procColor[1], 0)
+    equal(overlays[button].procColor[2], 230 / 255)
+    equal(overlays[button].procColor[3], 51 / 255)
+
+    cooldowns[2] = ready()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[button].procColor, nil)
+end)
+
+test('older shared custom color does not change new Judgement native default', function()
+    playerInCombat = true
+    _G.PaladinAssistForeverDB = { glowNativeColor = false, glowColor = 'ff0000ff' }
+    cooldowns = { [1] = ready(), [2] = ready() }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    equal(instance.Config.Get('holyStrikeCheckEnabled'), false)
+    equal(instance.Config.Get('judgementNativeColor'), true)
+    equal(instance.Config.Get('glowColor'), 'ff0000ff')
+    equal(overlays[button].procColor, nil)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))

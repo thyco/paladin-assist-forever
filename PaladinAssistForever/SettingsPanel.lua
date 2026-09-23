@@ -67,7 +67,7 @@ function panel:Initialize()
     scroll:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, -8)
     scroll:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -28, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(580, 622)
+    content:SetSize(580, 738)
     scroll:SetScrollChild(content)
     scroll:SetScript("OnSizeChanged", function(_, width)
         content:SetWidth(math.max(1, width))
@@ -79,18 +79,24 @@ function panel:Initialize()
     icon:SetTexture("Interface\\AddOns\\PaladinAssistForever\\Media\\Icon.tga")
     widgets.Text(content, "Paladin Assist Forever", 52, -8, "GameFontNormalLarge")
     widgets.Text(content, "Choose one button for each reminder. Changes apply immediately.", 52, -34)
-    local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · either spell off cooldown", -64, 270)
-    local seal = widgets.Section(content, "Seal reminder", "Combat or a living attackable target / mouseover", -350, 256)
+    local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · Judgement color takes priority", -64, 386)
+    local seal = widgets.Section(content, "Seal reminder", "Combat or a living attackable target / mouseover", -466, 256)
     self.sections = { holy, seal }
 
     checkbox(holy, "cooldownGlowEnabled", "PaladinAssistForever_CooldownGlowEnabled",
         "Holy strike glow on Holy strike and judgement", -62,
-        "Glow only in combat when either spell is off cooldown. Applies to paladins only; saved for all characters.")
+        "Glow only in combat when Judgement is off cooldown, or Holy Strike if its check is enabled. Applies to paladins only; saved for all characters.")
     buttonSelector(holy, "holyStrike", "HolyStrike", "Holy Strike/Judgement")
-    checkbox(holy, "glowNativeColor", "PaladinAssistForever_GlowNativeColor", "Use Blizzard native glow", -172,
-        "Uncheck to use your custom color. Your custom color stays saved while native mode is enabled.")
-    color(holy, "glowColor", "PaladinAssistForever_GlowColor", "Custom glow color", -216,
-        "Applies when Use Blizzard native glow is unchecked. Cancel restores the previous color.")
+    checkbox(holy, "holyStrikeCheckEnabled", "PaladinAssistForever_HolyStrikeCheckEnabled", "Check Holy Strike", -172,
+        "Uncheck to glow only when Judgement is ready. Judgement always takes priority when both spells are ready.")
+    checkbox(holy, "glowNativeColor", "PaladinAssistForever_GlowNativeColor", "Holy Strike: Blizzard native glow", -208,
+        "Uncheck to use the Holy Strike color below. Applies only when Check Holy Strike is enabled.")
+    color(holy, "glowColor", "PaladinAssistForever_GlowColor", "Holy Strike color", -248,
+        "Used when Holy Strike is ready and Judgement is not, with Holy Strike native mode unchecked.")
+    checkbox(holy, "judgementNativeColor", "PaladinAssistForever_JudgementNativeColor", "Judgement: Blizzard native glow", -288,
+        "Uncheck to use the Judgement color below. Judgement's appearance wins when both spells are ready.")
+    color(holy, "judgementGlowColor", "PaladinAssistForever_JudgementGlowColor", "Judgement color", -328,
+        "Used whenever Judgement is ready, with Judgement native mode unchecked. Cancel restores the previous color.")
 
     checkbox(seal, "sealGlowEnabled", "PaladinAssistForever_SealGlowEnabled", "Enable seal reminder", -62,
         "Reminds after your selected delay. After reload it assumes a refresh is due until a seal cast is observed. Does not detect dispels.")
