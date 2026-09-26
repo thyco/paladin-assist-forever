@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.8.4 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over.
+An expandable, paladin-only addon for WoW Forever. Version 0.8.5 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.8.4.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.8.5.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -51,18 +51,18 @@ Exorcism has its own glow owner, so disabling or moving it does not remove anoth
 
 In `/paf config`, check **Enable seal reminder** (enabled by default) inside the **Seal reminder** group, then choose its **Action bar** and **Button**. The default is **Bottom right bar → Button 4**, including when saved settings are missing. Its **Glow color** defaults to red and is independent of the Holy Strike color.
 
-- A successful player seal cast starts a timer. **Remind after** defaults to **26 seconds**, configurable from 1–30 seconds. At that time the chosen button glows, giving 4 seconds before the assumed 30-second expiry with the default. Changing the setting recalculates the current timer from the last cast; casting any recognized seal resets it.
+- A successful player seal cast starts a timer. Seal of Command damage procs have the same spell name but do not restart it. **Remind after** defaults to **26 seconds**, configurable from 1–30 seconds. At that time the chosen button glows, giving 4 seconds before the assumed 30-second expiry with the default. Changing the setting recalculates the current timer from the last cast; casting any recognized seal resets it.
 - New glows flash once in combat. Outside combat the seal glow starts directly in its loop. Entering combat does not reflash an existing glow; leaving combat cancels any unfinished flash.
 - The glow appears in combat or with a living attackable target/mouseover unit. Casts while the reminder is hidden or disabled still update its timer. Losing the visibility condition hides the glow without resetting the timer.
 - This is a refresh estimate, not an aura check: it never reads buff data and cannot detect an early dispel or manual removal. After login/reload or death, it assumes a refresh is due until it observes another seal cast.
-- Successful cast events may themselves contain restricted values. Unreadable unit/spell data is ignored safely; such a cast cannot restart the timer. `/paf` reports ignored restricted casts for troubleshooting. Verify successful seal casts hide the reminder in your client, including in combat.
+- Successful cast events may themselves contain restricted values. Unreadable unit/spell data is ignored safely; such a cast cannot restart the timer. `/paf` reports ignored restricted casts and ignored Seal of Command damage procs for troubleshooting. Verify successful seal casts hide the reminder in your client, including in combat.
 - Selection refers to a physical button position, not a spell or key binding. It stays on that position when you change bar pages or move spells. Only that selected, visible button is highlighted; it is up to you to keep your seal there. No binding or action is changed.
 - If both reminders target the same button, the seal color takes priority while a seal refresh is due. When you cast a seal, the Holy Strike glow resumes if you are in combat and either tracked attack is ready.
 - English spell names are supported across ranks: Righteousness, the Crusader, Command, Justice, Light, Wisdom, Fury, Blood, the Martyr, Vengeance and Corruption, all prefixed with “Seal of”. No cast is executed by the addon.
 
 ## Diagnostics
 
-Type `/paf` to print the client build/interface, all selected bar/button positions, spell IDs, cooldown states and seal timer diagnostics. If a target says **not selected**, choose its bar and button in `/paf config`.
+Type `/paf` to print the client build/interface, all selected bar/button positions, spell IDs, cooldown states, seal timer diagnostics, and the number of ignored Seal of Command procs. If a target says **not selected**, choose its bar and button in `/paf config`.
 
 The manifest targets interface **16001**. If a later beta marks it outdated, compare the fourth value printed by `/run print(GetBuildInfo())` with the TOC's `## Interface` line before updating the manifest. Merely changing that number does not validate compatibility with API changes.
 

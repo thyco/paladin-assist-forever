@@ -71,7 +71,7 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
     end
 
     local version, build, _, interface = GetBuildInfo()
-    print("Paladin Assist Forever 0.8.4 | client " .. version .. " (" .. build .. ") | interface " .. interface)
+    print("Paladin Assist Forever 0.8.5 | client " .. version .. " (" .. build .. ") | interface " .. interface)
     if not addon.started then
         print("Paladin features are inactive on this character.")
         return
@@ -84,7 +84,8 @@ SlashCmdList.PALADINASSISTFOREVER = function(message)
     print("Seal reminder: " .. (addon.Config.Get("sealGlowEnabled") and "enabled" or "disabled")
         .. " | target: " .. (target and (target .. " / " .. addon.Config.Get("sealButton")) or "not selected")
         .. " | refresh due in: " .. string.format("%.1fs", seal.timer:Remaining())
-        .. " | ignored restricted casts: " .. seal.ignoredRestrictedCasts)
+        .. " | ignored restricted casts: " .. seal.ignoredRestrictedCasts
+        .. " | ignored Command procs: " .. seal.ignoredCommandProcs)
     local holyBar = addon.Buttons.Bars()[addon.Config.Get("holyStrikeBar")]
     print("Holy Strike/Judgement target: "
         .. (holyBar and (holyBar .. " / " .. addon.Config.Get("holyStrikeButton")) or "not selected"))

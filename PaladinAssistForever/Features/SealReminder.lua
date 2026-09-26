@@ -4,6 +4,7 @@ local feature = {
     settingKey = "sealGlowEnabled",
     timer = addon.Timers.New(),
     ignoredRestrictedCasts = 0,
+    ignoredCommandProcs = 0,
 }
 addon.SealReminder = feature
 addon:RegisterFeature(feature)
@@ -22,6 +23,16 @@ local seals = {
     ["Seal of the Martyr"] = true,
     ["Seal of Vengeance"] = true,
     ["Seal of Corruption"] = true,
+}
+
+-- Seal of Command's on-hit spells share its cast name. A proc is damage,
+-- not a new 30-second seal, so it must not restart the reminder timer.
+local commandProcIDs = {
+    [20424] = true,
+    [20944] = true,
+    [20945] = true,
+    [20946] = true,
+    [20947] = true,
 }
 
 function feature:ApplySettings()
@@ -54,6 +65,11 @@ function feature:OnEvent(event, unit, castGUID, spellID)
     end
 
     if type(spellID) ~= "number" then
+        return
+    end
+
+    if commandProcIDs[spellID] then
+        self.ignoredCommandProcs = self.ignoredCommandProcs + 1
         return
     end
 

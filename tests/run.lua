@@ -743,7 +743,10 @@ local function sealFixture(settings)
     instance.Client.SpellName = function(id)
         if rawequal(id, secret) then error('secret spell ID reached spell lookup') end
         if id == 3 or id == 4 then return 'Seal of Righteousness' end
-        if id == 5 then return 'Seal of Command' end
+        if id == 5 or id == 20375 or id == 20920 or id == 20424
+            or id == 20944 or id == 20945 or id == 20946 or id == 20947 then
+            return 'Seal of Command'
+        end
         if id == 6 then return secret end
         return original(id) and original(id).name
     end
@@ -799,6 +802,29 @@ test('different seal and another rank restart the timer', function()
     equal(overlay.visible, false)
     tick(174)
     equal(overlay.visible, true)
+end)
+test('Seal of Command damage procs do not postpone the reminder', function()
+    local instance, events, cast, tick, overlay = sealFixture()
+    cast(20375)
+
+    for index, procID in ipairs({ 20424, 20944, 20945, 20946, 20947 }) do
+        tick(100 + index * 4)
+        cast(procID)
+    end
+
+    tick(126)
+
+    equal(overlay.visible, true)
+    equal(instance.SealReminder.ignoredCommandProcs, 5)
+
+    cast(20920)
+    tick(145)
+    cast(20947)
+
+    tick(152)
+
+    equal(overlay.visible, true)
+    equal(instance.SealReminder.ignoredCommandProcs, 6)
 end)
 test('unrelated and other-unit casts do not restart seal timer', function()
     local instance, events, cast, tick, overlay = sealFixture()
