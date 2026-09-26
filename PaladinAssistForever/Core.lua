@@ -25,6 +25,7 @@ end
 function addon:PrepareButtons()
     for _, button in ipairs(self.Buttons.All()) do
         self.Glow.Prepare(button)
+        self.ButtonShade.Prepare(button)
     end
 end
 

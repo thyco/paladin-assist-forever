@@ -11,6 +11,11 @@ local defaults = {
     judgementGlowColor = "ffff0000",
     glowNativeColor = false,
     glowColor = "ff00bfa5",
+    exorcismGlowEnabled = true,
+    exorcismBar = 3,
+    exorcismButton = 5,
+    exorcismNativeColor = true,
+    exorcismGlowColor = "ffffd24a",
     sealGlowEnabled = true,
     sealReminderSeconds = 26,
     sealBar = 3,
@@ -25,7 +30,7 @@ local function validValue(key, value)
         return false
     end
 
-    if key == "glowColor" or key == "judgementGlowColor" or key == "sealGlowColor" then
+    if key == "glowColor" or key == "judgementGlowColor" or key == "exorcismGlowColor" or key == "sealGlowColor" then
         return #value == 8 and value:match("^%x+$") ~= nil
     end
 
@@ -33,9 +38,9 @@ local function validValue(key, value)
         return value >= 1 and value <= 30 and value == math.floor(value)
     end
 
-    if key == "sealBar" or key == "holyStrikeBar" then
+    if key == "sealBar" or key == "holyStrikeBar" or key == "exorcismBar" then
         return value >= 0 and value <= 8 and value == math.floor(value)
-    elseif key == "sealButton" or key == "holyStrikeButton" then
+    elseif key == "sealButton" or key == "holyStrikeButton" or key == "exorcismButton" then
         return value >= 1 and value <= 12 and value == math.floor(value)
     end
 
@@ -43,7 +48,7 @@ local function validValue(key, value)
 end
 
 local function normalize(key, value)
-    if key == "glowColor" or key == "judgementGlowColor" or key == "sealGlowColor" then
+    if key == "glowColor" or key == "judgementGlowColor" or key == "exorcismGlowColor" or key == "sealGlowColor" then
         -- The native RGB picker can return a zero alpha byte. Glow opacity is
         -- always opaque; only RGB is configurable.
         return "ff" .. value:sub(3):lower()

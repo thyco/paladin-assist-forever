@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: Paladin Assist Forever
 ## IconTexture: Interface\AddOns\PaladinAssistForever\Media\Icon.tga
-## Notes: Reusable paladin helpers. Combat-only Holy Strike readiness; timed seal reminders in combat or with an attackable target/mouseover.
+## Notes: Reusable paladin helpers. Combat-only attack and Exorcism glows; timed seal reminders.
 ## Author: Paladin Assist Forever
-## Version: 0.7.2
+## Version: 0.8.1
 ## OptionalDeps: LibCustomGlow-1.0
 ## SavedVariables: PaladinAssistForeverDB
 
@@ -16,9 +16,11 @@ Services/Client.lua
 Services/Macros.lua
 Services/Buttons.lua
 Services/Glow.lua
+Services/ButtonShade.lua
 Services/Cooldowns.lua
 Services/Timers.lua
 Features/HolyStrikeGlow.lua
+Features/ExorcismGlow.lua
 Features/SealReminder.lua
 Services/SettingsWidgets.lua
 SettingsPanel.lua

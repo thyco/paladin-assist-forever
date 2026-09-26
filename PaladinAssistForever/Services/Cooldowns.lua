@@ -64,7 +64,9 @@ end
 
 -- A feature that stops receiving events must release its cached snapshot.
 function Cooldowns.Invalidate(id)
-    gcdOnly[id] = nil
+    if id then
+        gcdOnly[id] = nil
+    end
 end
 
 function Cooldowns.AnyReady(ids, cooldownEvent)

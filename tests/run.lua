@@ -48,7 +48,7 @@ end
 
 local macro = '#showtooltip holy strike\n/cast judgement\n/cast holy strike\n/startattack'
 local now = 100
-local known = { [1] = true, [2] = true }
+local known = { [1] = true, [2] = true, [7] = true }
 local cooldowns = {}
 local secret = setmetatable({}, { __eq = function() error('secret comparison') end, __add = function() error('secret arithmetic') end })
 _G.issecretvalue = function(value) return rawequal(value, secret) end
@@ -57,6 +57,7 @@ _G.C_Spell = {
     GetSpellInfo = function(value)
         if value == 'Holy Strike' or value == 1 then return { spellID = 1, name = 'Holy Strike' } end
         if value == 'Judgement' or value == 2 then return { spellID = 2, name = 'Judgement' } end
+        if value == 'Exorcism' or value == 7 then return { spellID = 7, name = 'Exorcism' } end
     end,
     GetSpellCooldown = function(id) return cooldowns[id] end,
 }
@@ -170,11 +171,34 @@ end)
 local overlays = {}
 local lastFrame
 local function texture()
-    return { SetAllPoints = function() end, SetTexture = function() end, SetBlendMode = function() end, SetVertexColor = function() end, SetPoint = function() end, SetColorTexture = function() end, SetSize = function() end }
+    return {
+        SetAllPoints = function(self, anchor) self.anchor = anchor end,
+        SetTexture = function() end,
+        SetBlendMode = function() end,
+        SetVertexColor = function() end,
+        SetPoint = function() end,
+        SetColorTexture = function(self, red, green, blue, alpha) self.color = { red, green, blue, alpha } end,
+        SetSize = function() end,
+        Show = function(self) self.visible = true end,
+        Hide = function(self) self.visible = false end,
+    }
 end
 local unitPresence = {}
 local unitAttackable = {}
 local unitDead = {}
+local creatureTypes = {}
+_G.UnitCreatureType = function(unit)
+    local creature = creatureTypes[unit]
+    if creature then
+        return creature.name, creature.id
+    end
+end
+_G.C_CreatureInfo = {
+    GetCreatureTypeInfo = function(id)
+        if id == 3 then return { id = 3, name = 'Localized Demon' } end
+        if id == 6 then return { id = 6, name = 'Localized Undead' } end
+    end,
+}
 _G.UnitExists = function(unit) return unitPresence[unit] end
 _G.UnitIsDeadOrGhost = function(unit) return unitDead[unit] or false end
 _G.UnitCanAttack = function(player, unit)
@@ -232,6 +256,19 @@ _G.CreateFrame = function(_, _, parent)
 end
 button.GetFrameLevel = function() return 1 end
 _G.ActionButton2.GetFrameLevel = function() return 1 end
+local function addButtonTextures(actionButton)
+    actionButton.CreateTexture = function(self)
+        self.createdTextures = self.createdTextures or {}
+        local created = texture()
+        self.createdTextures[#self.createdTextures + 1] = created
+        return created
+    end
+end
+addButtonTextures(button)
+addButtonTextures(_G.ActionButton2)
+local function latestButtonTexture(actionButton)
+    return actionButton.createdTextures and actionButton.createdTextures[#actionButton.createdTextures]
+end
 
 test('another owner keeps shared glow visible', function()
     addon.Glow.Set(button, 'first', true)
@@ -1213,11 +1250,13 @@ test('settings groups contain their own controls and update saved values', funct
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     local panel = instance.SettingsPanel
     local controls = panel.controls
-    equal(#panel.sections, 2)
+    equal(#panel.sections, 3)
     equal(panel.sections[1].backdrop.edgeSize, 1)
     equal(panel.sections[2].backdrop.edgeSize, 1)
+    equal(panel.sections[3].backdrop.edgeSize, 1)
     equal(controls.holyStrikeBar.parent, panel.sections[1])
     equal(controls.sealBar.parent, panel.sections[2])
+    equal(controls.exorcismBar.parent, panel.sections[3])
 
     controls.cooldownGlowEnabled:SetChecked(false)
     controls.cooldownGlowEnabled.scripts.OnClick(controls.cooldownGlowEnabled)
@@ -1564,6 +1603,230 @@ test('older shared custom color does not change new Judgement native default', f
     equal(instance.Config.Get('judgementNativeColor'), true)
     equal(instance.Config.Get('glowColor'), 'ff0000ff')
     equal(overlays[button].procColor, nil)
+end)
+
+local function exorcismFixture(settings)
+    playerInCombat = true
+    unitPresence = {}
+    unitAttackable = {}
+    unitDead = {}
+    creatureTypes = {}
+    known[7] = true
+    cooldowns = { [1] = cooling(), [2] = cooling(), [7] = ready() }
+    _G.PaladinAssistForeverDB = settings or {
+        cooldownGlowEnabled = false,
+        sealGlowEnabled = false,
+        exorcismBar = 1,
+        exorcismButton = 2,
+    }
+    local instance, events = loadBootstrap('PALADIN')
+
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    return instance, events
+end
+
+test('creature type helper accepts living attackable demon and undead IDs', function()
+    local instance = exorcismFixture()
+    unitPresence.target = true
+    unitAttackable.target = true
+    local eligible = { [3] = true, [6] = true }
+
+    creatureTypes.target = { id = 3 }
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), true)
+    creatureTypes.target = { id = 6 }
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), true)
+    creatureTypes.target = { id = 7 }
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), false)
+
+    creatureTypes.target = { id = 3 }
+    unitDead.target = true
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), false)
+    unitDead.target = false
+    unitAttackable.target = false
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), false)
+end)
+
+test('creature type helper handles localized names and restricted values', function()
+    local instance = exorcismFixture()
+    unitPresence.target = true
+    unitAttackable.target = true
+    local eligible = { [3] = true, [6] = true }
+
+    creatureTypes.target = { name = 'Localized Demon' }
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), true)
+    creatureTypes.target = { name = 'Localized Undead' }
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), true)
+    creatureTypes.target = { name = secret, id = secret }
+    equal(instance.Client.HasAttackableCreatureType('target', eligible), false)
+
+    unitPresence.mouseover = true
+    unitAttackable.mouseover = true
+    creatureTypes.mouseover = { id = 6 }
+    equal(instance.Client.HasAttackableCreatureType('mouseover', eligible), true)
+end)
+
+test('Exorcism glows on its selected button for undead target or demon mouseover', function()
+    local instance, events = exorcismFixture()
+    local glow = overlays[ActionButton2]
+    equal(glow.visible, false)
+
+    unitPresence.target = true
+    unitAttackable.target = true
+    creatureTypes.target = { id = 6 }
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(glow.visible, true)
+    equal(glow.procColor, nil)
+
+    creatureTypes.target = { id = 7 }
+    unitPresence.mouseover = true
+    unitAttackable.mouseover = true
+    creatureTypes.mouseover = { id = 3 }
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(glow.visible, true)
+
+    creatureTypes.mouseover = { id = 7 }
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(glow.visible, false)
+end)
+
+test('Exorcism needs combat, cooldown readiness, and a living attackable creature', function()
+    local instance, events = exorcismFixture()
+    unitPresence.target = true
+    unitAttackable.target = true
+    creatureTypes.target = { id = 3 }
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[ActionButton2].visible, true)
+
+    cooldowns[7] = cooling()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[ActionButton2].visible, false)
+    cooldowns[7] = ready()
+    playerInCombat = false
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+    equal(overlays[ActionButton2].visible, false)
+
+    playerInCombat = true
+    unitDead.target = true
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+    equal(overlays[ActionButton2].visible, false)
+end)
+
+test('Exorcism defaults to native on bottom right button five', function()
+    local instance = exorcismFixture({ cooldownGlowEnabled = false, sealGlowEnabled = false })
+
+    equal(instance.Config.Get('exorcismGlowEnabled'), true)
+    equal(instance.Config.Get('exorcismBar'), 3)
+    equal(instance.Config.Get('exorcismButton'), 5)
+    equal(instance.Config.Get('exorcismNativeColor'), true)
+    equal(instance.SettingsPanel.controls.exorcismBar.menuText, 'Bottom right bar')
+    equal(instance.SettingsPanel.controls.exorcismButton.menuText, 'Button 5')
+end)
+
+test('Exorcism selection color and enable setting update an active glow', function()
+    local instance, events = exorcismFixture()
+    unitPresence.target = true
+    unitAttackable.target = true
+    creatureTypes.target = { id = 6 }
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    local previous = overlays[ActionButton2]
+    local stops = previous.procStops
+
+    instance.Config.Set('exorcismNativeColor', false)
+    instance.Config.Set('exorcismGlowColor', 'ff0000ff')
+    equal(previous.procColor[3], 1)
+    equal(previous.procStops, stops)
+
+    instance.Config.Set('exorcismButton', 1)
+    equal(previous.visible, false)
+    equal(overlays[ActionButton1].visible, true)
+
+    instance.Config.Set('exorcismGlowEnabled', false)
+    equal(overlays[ActionButton1].visible, false)
+    instance.Config.Set('exorcismGlowEnabled', true)
+    equal(overlays[ActionButton1].visible, true)
+end)
+
+test('Exorcism stays dark for unknown or restricted cooldowns and unlearned spell', function()
+    local instance, events = exorcismFixture()
+    unitPresence.target = true
+    unitAttackable.target = true
+    creatureTypes.target = { id = 6 }
+
+    cooldowns[7] = nil
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[ActionButton2].visible, false)
+
+    cooldowns[7] = { startTime = secret, duration = secret, isActive = true }
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[ActionButton2].visible, false)
+
+    known[7] = false
+    cooldowns[7] = ready()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(overlays[ActionButton2].visible, false)
+end)
+
+test('Exorcism can start disabled before its spell is discovered', function()
+    local instance = exorcismFixture({
+        cooldownGlowEnabled = false,
+        sealGlowEnabled = false,
+        exorcismGlowEnabled = false,
+        exorcismBar = 1,
+        exorcismButton = 2,
+    })
+
+    equal(instance.Config.Get('exorcismGlowEnabled'), false)
+    equal(overlays[ActionButton2].visible, false)
+end)
+
+test('Exorcism button is grey when the reminder conditions fail', function()
+    local instance, events = exorcismFixture()
+    local shade = latestButtonTexture(ActionButton2)
+
+    equal(shade.visible, true)
+    equal(shade.color[1], shade.color[2])
+    equal(shade.color[2], shade.color[3])
+
+    unitPresence.target = true
+    unitAttackable.target = true
+    creatureTypes.target = { id = 6 }
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(shade.visible, false)
+    equal(overlays[ActionButton2].visible, true)
+
+    cooldowns[7] = cooling()
+    events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
+    equal(shade.visible, true)
+    equal(overlays[ActionButton2].visible, false)
+end)
+
+test('Exorcism button stays bright for a usable spell outside combat', function()
+    local instance, events = exorcismFixture()
+    local shade = latestButtonTexture(ActionButton2)
+    unitPresence.mouseover = true
+    unitAttackable.mouseover = true
+    creatureTypes.mouseover = { id = 3 }
+    playerInCombat = false
+
+    events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+
+    equal(shade.visible, false)
+    equal(overlays[ActionButton2].visible, false)
+end)
+
+test('moving or disabling Exorcism clears its button shade', function()
+    local instance = exorcismFixture()
+    local previous = latestButtonTexture(ActionButton2)
+    equal(previous.visible, true)
+
+    instance.Config.Set('exorcismButton', 1)
+    local selected = latestButtonTexture(ActionButton1)
+    equal(previous.visible, false)
+    equal(selected.visible, true)
+
+    instance.Config.Set('exorcismGlowEnabled', false)
+    equal(selected.visible, false)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))

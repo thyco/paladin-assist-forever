@@ -67,7 +67,7 @@ function panel:Initialize()
     scroll:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, -8)
     scroll:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -28, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(580, 738)
+    content:SetSize(580, 1020)
     scroll:SetScrollChild(content)
     scroll:SetScript("OnSizeChanged", function(_, width)
         content:SetWidth(math.max(1, width))
@@ -81,7 +81,9 @@ function panel:Initialize()
     widgets.Text(content, "Choose one button for each reminder. Changes apply immediately.", 52, -34)
     local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · Judgement color takes priority", -64, 386)
     local seal = widgets.Section(content, "Seal reminder", "Combat or a living attackable target / mouseover", -466, 256)
-    self.sections = { holy, seal }
+    local exorcism = widgets.Section(content, "Exorcism", "Combat only · living attackable undead or demon", -738, 256)
+
+    self.sections = { holy, seal, exorcism }
 
     checkbox(holy, "cooldownGlowEnabled", "PaladinAssistForever_CooldownGlowEnabled",
         "Holy strike glow on Holy strike and judgement", -62,
@@ -113,6 +115,17 @@ function panel:Initialize()
 
     color(seal, "sealGlowColor", "PaladinAssistForever_SealGlowColor", "Glow color", -216,
         "Red by default, independent of Holy Strike. Seal color takes priority if both reminders share a button.")
+
+    checkbox(exorcism, "exorcismGlowEnabled", "PaladinAssistForever_ExorcismGlowEnabled",
+        "Enable Exorcism glow", -62,
+        "Glow in combat when Exorcism is off cooldown and your target or mouseover is a living attackable undead or demon.")
+    buttonSelector(exorcism, "exorcism", "Exorcism", "Exorcism")
+    checkbox(exorcism, "exorcismNativeColor", "PaladinAssistForever_ExorcismNativeColor",
+        "Use Blizzard native glow", -172,
+        "Uncheck to use your custom Exorcism color. Native glow is the default.")
+    color(exorcism, "exorcismGlowColor", "PaladinAssistForever_ExorcismGlowColor",
+        "Custom glow color", -216,
+        "Applies when Blizzard native glow is unchecked. Cancel restores the previous color.")
 
     canvas:SetScript("OnShow", function()
         content:SetWidth(math.max(1, scroll:GetWidth()))

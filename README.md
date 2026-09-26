@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.7.2 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and **Judgement is off cooldown**, or **Holy Strike is off cooldown when its check is enabled**. The same button glows for both spells; a separate Judgement button is not highlighted.
+An expandable, paladin-only addon for WoW Forever. Version 0.8.1 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.7.2.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.8.1.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -26,7 +26,7 @@ Open `/paf config` and choose **Action bar** and **Button** in the **Holy Strike
 
 Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 
-The panel has two bordered groups, **Holy Strike / Judgement** and **Seal reminder**. Each contains its own enable toggle, bar/button selectors and color controls. Scroll when needed; changes apply immediately and existing saved preferences are retained.
+The panel has three bordered groups: **Holy Strike / Judgement**, **Seal reminder**, and **Exorcism**. Each contains its own enable toggle, bar/button selectors and color controls. Scroll when needed; changes apply immediately and existing saved preferences are retained.
 
 - **Holy strike glow on Holy strike and judgement** is checked by default. Its default position is **Bottom right bar → Button 3**; you can change it below the checkbox.
 - **Check Holy Strike** is on by default. Uncheck it if you want only Judgement readiness to trigger the selected button.
@@ -38,6 +38,14 @@ The panel has two bordered groups, **Holy Strike / Judgement** and **Seal remind
 - Checking the feature toggle again immediately uses the selected position and reevaluates readiness. The Holy Strike/Judgement glow appears only in combat. The seal reminder also appears outside combat when your target or mouseover is a unit you can attack, including attackable neutral units and unit-frame mouseovers. Target changes refresh immediately; mouseover departure is also checked every 0.1 seconds.
 - All preferences are saved account-wide across reloads and logouts. Existing installations default to enabled on upgrade.
 - The panel is available on all characters; the glow feature still runs only for paladins.
+
+## Exorcism glow
+
+The **Exorcism** group has its own enable checkbox, action-bar/button selector, and native/custom color controls. It is enabled by default on **Bottom right bar → Button 5** with Blizzard's native glow. Select the physical button where you placed Exorcism if it is elsewhere.
+
+The button glows only in combat when Exorcism is off cooldown and either your target or mouseover is a living unit you can attack whose creature type is **Demon** or **Undead**. Its icon is shaded grey whenever those cooldown and target checks do not pass, including outside combat; a ready spell with a valid target looks normal outside combat. It uses the locale-independent creature type ID returned by `UnitCreatureType` when available, with a localized-name fallback for clients that only provide the name. If the creature type is unreadable, the glow stays off and the selected button remains shaded. As with the other attack glow, it does not check range, mana, or whether a cast would succeed. No spell is cast by the addon.
+
+Exorcism has its own glow owner, so disabling or moving it does not remove another reminder. If reminders share a button, the seal reminder's color takes priority, then Exorcism, then Holy Strike/Judgement.
 
 ## Seal refresh reminder
 
@@ -54,11 +62,11 @@ In `/paf config`, check **Enable seal reminder** (enabled by default) inside the
 
 ## Diagnostics
 
-Type `/paf` to print the client build/interface, both selected bar/button positions, spell IDs, cooldown states and seal timer diagnostics. If a target says **not selected**, choose its bar and button in `/paf config`.
+Type `/paf` to print the client build/interface, all selected bar/button positions, spell IDs, cooldown states and seal timer diagnostics. If a target says **not selected**, choose its bar and button in `/paf config`.
 
 The manifest targets interface **16001**. If a later beta marks it outdated, compare the fourth value printed by `/run print(GetBuildInfo())` with the TOC's `## Interface` line before updating the manifest. Merely changing that number does not validate compatibility with API changes.
 
-Cooldown APIs can return restricted values in combat. The service uses public state flags where available, retains event-authoritative GCD state between updates, and never performs arithmetic on secret values. Missing or unreadable data never independently triggers a glow. A readable, ready companion spell can still trigger it. A newly created button encountered in combat waits until combat ends to receive its overlay.
+Cooldown APIs can return restricted values in combat. The service uses public state flags where available, retains event-authoritative GCD state between updates, and never performs arithmetic on secret values. Missing or unreadable data never independently triggers a glow. A readable, ready companion spell can still trigger it. A newly created button encountered in combat waits until combat ends to receive its glow or shade overlay.
 
 ## Glow rendering
 
@@ -68,14 +76,15 @@ The library copy is the same minor version 25 bundled with DK Force. See `Paladi
 
 ## Reuse and extension
 
-Every file receives the private addon namespace through `local _, addon = ...`. Services contain no paladin spell names. Spell-specific rules live in `Features/HolyStrikeGlow.lua` and `Features/SealReminder.lua`.
+Every file receives the private addon namespace through `local _, addon = ...`. Services contain no paladin spell names. Spell-specific rules live in `Features/HolyStrikeGlow.lua`, `Features/ExorcismGlow.lua`, and `Features/SealReminder.lua`.
 
 | Module | Reusable interface | Responsibility |
 | --- | --- | --- |
-| `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)`, `HasGlowContext()` | Adapts modern APIs and available legacy equivalents; isolates client changes. |
+| `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)`, `HasGlowContext()`, `HasAttackableCreatureType(unit, types)` | Adapts modern APIs and available legacy equivalents; isolates client changes and guarded creature-type reads. |
 | `Services/Macros.lua` | `Casts(body, spellName)` | Exact, case-insensitive matching of simple cast lines; never executes macros. |
 | `Services/Buttons.lua` | `All()`, `FindSpell(spellName)`, `Bars()`, `Selected(bar, index)` | Enumerates default buttons and resolves current slots, including macros and paging. |
 | `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active, options)`, `ClearOwner(owner)`, `Configure(options)`, `ConfigureOwner(owner, options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
+| `Services/ButtonShade.lua` | `Prepare(button)`, `Set(button, owner, active)`, `ClearOwner(owner)` | Adds a reusable grey icon tint without changing action attributes or casting; multiple features can request it independently. |
 | `Services/Cooldowns.lua` | `IsReady(spellID, cooldownEvent)`, `AnyReady(spellIDs, cooldownEvent)`, `Invalidate(spellID)` | Evaluates ordinary, non-charge spell cooldowns. `IsReady` returns true, false, or nil for unavailable data; `AnyReady` returns a boolean. |
 | `Services/Timers.lua` | `New()` → `Start(seconds)`, `SetDuration(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
 | `Services/Config.lua` | `Initialize()`, `Get(key)`, `GetDefault(key)`, `GetColor(key)`, `Set(key, value)`, `Subscribe(listener)` | Saves typed defaults and preferences; notifies consumers when a setting changes. |
@@ -85,7 +94,7 @@ Every file receives the private addon namespace through `local _, addon = ...`. 
 
 `Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. `Glow.Set` accepts optional `{ startAnim = false }` to skip or cancel startup animation; the seal feature uses this outside combat. Use `Glow.ConfigureOwner(owner, { color = ..., priority = ... })` for independent feature colors; higher priority wins on shared buttons, and owner names break ties deterministically. Saved preferences stay in Config; Glow remains independent of the settings panel.
 
-Automatic spell discovery remains available as a reusable service for future features, but both current reminders use manual selection. A future feature can reuse discovery and rendering without copying them:
+Automatic spell discovery remains available as a reusable service for future features, but all current reminders use manual selection. A future feature can reuse discovery and rendering without copying them:
 
 ```lua
 local _, addon = ...
@@ -107,7 +116,7 @@ addon:RegisterFeature(feature)
 
 For a future configurable feature, add a default in `Services/Config.lua`, set its `settingKey`, implement `Stop()` to release its glow ownership and invalidate cached cooldown snapshots, and register its UI control in `SettingsPanel.lua`. Features without a `settingKey` remain enabled.
 
-Load feature files after the services and before `Bootstrap.lua` in the TOC. Retain and clear previous button matches when a rule's target moves, as the shipped feature does. `Prepare` allocates only out of combat; the core prepares all existing default buttons at login and after combat, even if empty or the feature is disabled. `Set` starts/stops the library effect and shows/hides this addon's overlay, preserving macro contents, action attributes and Blizzard's own proc alerts. Event callbacks refresh promptly; the core polls cooldown expiry every 0.1 seconds and discovery every 0.5 seconds.
+Load feature files after the services and before `Bootstrap.lua` in the TOC. Retain and clear previous button matches when a rule's target moves, as the shipped feature does. `Prepare` allocates only out of combat; the core prepares glow and shade visuals on existing default buttons at login and after combat, even if empty or the feature is disabled. `Set` starts/stops the library effect and shows/hides this addon's overlay, preserving macro contents, action attributes and Blizzard's own proc alerts. Event callbacks refresh promptly; the core polls cooldown expiry every 0.1 seconds and discovery every 0.5 seconds.
 
 ## Verification
 
@@ -125,7 +134,7 @@ In-game acceptance checks:
 - Enable Lua errors with `/console scriptErrors 1`, then `/reload`.
 - In combat, check that each newly activated glow flashes once, then loops without repeated startup flashes.
 - With both attacks ready outside combat, confirm Holy Strike stays dark even with an attackable target or mouseover. Enter combat and confirm it glows; leave combat and confirm it clears. A due seal reminder should still glow outside combat with an attackable target/mouseover, and clear when neither qualifies.
-- Put both spells on cooldown; confirm the glow disappears. When Judgement finishes first, confirm the button glows again. Confirm Holy Strike can also trigger it when it finishes first.
+- Put Holy Strike and Judgement on cooldown; confirm their glow disappears. When Judgement finishes first, confirm the button glows again. Confirm Holy Strike can also trigger it when it finishes first.
 - In combat, check with no target, out of range and without enough mana. After combat the Holy Strike glow must remain hidden regardless of target, mouseover or readiness.
 - Trigger only the global cooldown while both tracked abilities are otherwise ready; confirm no flicker where the client exposes the distinction.
 - Move the macro or change bar pages; confirm the glow remains on the selected physical position. Change the selector to the new position and confirm the old glow clears immediately. Reload and confirm the selection persists.
@@ -133,6 +142,7 @@ In-game acceptance checks:
 - Open `/paf config`; disable the glow while it is visible and confirm it disappears immediately. Reload and confirm the checkbox remains off. Enable it again and confirm readiness is reflected immediately.
 - Set Judgement to custom red. In combat, both ready should show red; only Holy Strike ready should show teal. Swap each native/custom option and confirm changes apply immediately without repeating the flash. Cancel a color change and reload to verify saved appearance.
 - Uncheck **Check Holy Strike**: only Judgement readiness should trigger the glow, even when Holy Strike is ready. Re-enable it and confirm Holy Strike can trigger the glow again.
+- With Exorcism ready, target a living attackable undead or demon in combat and confirm its selected button glows without a grey tint. Repeat with only a mouseover. Switch to a humanoid, friendly unit, or dead enemy, or start Exorcism's cooldown: the glow should clear and the icon should shade grey. Outside combat with a valid target, the glow should be off and the icon should look normal. Disable the Exorcism setting and confirm the shade disappears. If a beta treats creature type as restricted, the glow remains off for that unit and should not cause a Lua error.
 - Choose your seal bar/button, cast a seal out of combat, enter combat, and confirm only the selected button turns red at the configured delay (26 seconds by default). Cast another seal and confirm the glow disappears immediately. Repeat the cast in combat to check event visibility in your client.
 - Change the selected button and color, disable/re-enable the reminder, and confirm no leftover glow. Check the shared-button priority if you deliberately select the Holy Strike button.
 - Report `/paf` output and any Lua error if a beta API differs.
@@ -150,6 +160,7 @@ In-game acceptance checks:
 
 - [LibCustomGlow upstream](https://github.com/Stanzilla/LibCustomGlow)
 
+- [Creature-type API and restricted-return contract](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)
 - [Successful spell-cast event contract](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)
 
 ## Addon icon
