@@ -28,7 +28,7 @@ function feature:Refresh(discover, cooldownEvent)
     self.button = button
 
     local ready = addon.Cooldowns.IsReady(self.spellID, cooldownEvent) == true
-    local hasUnit = addon.Client.HasUnit("target") or addon.Client.HasUnit("mouseover")
+    local hasAttackableUnit = addon.Client.CanAttack("target") or addon.Client.CanAttack("mouseover")
     local usable = ready and (addon.Client.HasAttackableCreatureType("target", eligibleTypes)
         or addon.Client.HasAttackableCreatureType("mouseover", eligibleTypes))
     local combat = UnitAffectingCombat("player")
@@ -36,7 +36,7 @@ function feature:Refresh(discover, cooldownEvent)
 
     if button then
         local visible = button:IsVisible()
-        addon.ButtonDesaturation.Set(button, self.owner, visible and hasUnit and not usable)
+        addon.ButtonDesaturation.Set(button, self.owner, visible and hasAttackableUnit and not usable)
         addon.Glow.Set(button, self.owner, visible and inCombat and usable)
     end
 end

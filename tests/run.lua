@@ -1671,6 +1671,7 @@ test('Exorcism glows on its selected button for undead target or demon mouseover
     equal(glow.procColor, nil)
 
     creatureTypes.target = { id = 7 }
+    unitAttackable.target = false
     unitPresence.mouseover = true
     unitAttackable.mouseover = true
     creatureTypes.mouseover = { id = 3 }
@@ -1779,8 +1780,11 @@ test('Exorcism icon is desaturated when the reminder conditions fail', function(
     equal(icon.desaturation, 0)
 
     unitPresence.target = true
-    unitAttackable.target = true
     creatureTypes.target = { id = 7 }
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(icon.desaturation, 0)
+
+    unitAttackable.target = true
     events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
     equal(icon.desaturation, 1)
 
@@ -1799,8 +1803,11 @@ test('Exorcism icon is desaturated when the reminder conditions fail', function(
     equal(icon.desaturation, 0)
 
     unitPresence.mouseover = true
-    unitAttackable.mouseover = true
     creatureTypes.mouseover = { id = 7 }
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(icon.desaturation, 0)
+
+    unitAttackable.mouseover = true
     events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
     equal(icon.desaturation, 1)
 
@@ -1827,6 +1834,7 @@ test('moving or disabling Exorcism restores icon saturation', function()
     local instance = exorcismFixture()
     local previous = ActionButton2.icon
     unitPresence.target = true
+    unitAttackable.target = true
     creatureTypes.target = { id = 7 }
     instance:Refresh(false)
     equal(previous.desaturation, 1)

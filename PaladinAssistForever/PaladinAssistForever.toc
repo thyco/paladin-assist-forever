@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\PaladinAssistForever\Media\Icon.tga
 ## Notes: Reusable paladin helpers. Combat-only attack and Exorcism glows; timed seal reminders.
 ## Author: Paladin Assist Forever
-## Version: 0.8.3
+## Version: 0.8.4
 ## OptionalDeps: LibCustomGlow-1.0
 ## SavedVariables: PaladinAssistForeverDB
 
