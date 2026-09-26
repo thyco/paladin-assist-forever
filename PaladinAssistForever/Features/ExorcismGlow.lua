@@ -29,8 +29,8 @@ function feature:Refresh(discover, cooldownEvent)
 
     local ready = addon.Cooldowns.IsReady(self.spellID, cooldownEvent) == true
     local hasAttackableUnit = addon.Client.CanAttack("target") or addon.Client.CanAttack("mouseover")
-    local usable = ready and (addon.Client.HasAttackableCreatureType("target", eligibleTypes)
-        or addon.Client.HasAttackableCreatureType("mouseover", eligibleTypes))
+    local usable = ready and (addon.Client.HasAttackableCreatureType("target", eligibleTypes, self.spellID)
+        or addon.Client.HasAttackableCreatureType("mouseover", eligibleTypes, self.spellID))
     local combat = UnitAffectingCombat("player")
     local inCombat = addon.Client.Readable(combat) and combat
 

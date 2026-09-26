@@ -114,31 +114,44 @@ function Client.CanAttack(unit)
     return Client.Readable(attackable) and not not attackable
 end
 
+-- A non-nil range result means the spell accepts this unit as a target.
+-- Both true and false qualify; actual distance is not part of this check.
+function Client.CanSpellTargetUnit(spellID, unit)
+    if not spellID or not C_Spell or not C_Spell.IsSpellInRange then
+        return false
+    end
+
+    local inRange = C_Spell.IsSpellInRange(spellID, unit)
+    return Client.Readable(inRange) and type(inRange) == "boolean"
+end
+
 -- Creature-type IDs avoid locale-dependent names. Older clients may return
--- only a localized name, which can be matched through CreatureInfo.
-function Client.HasAttackableCreatureType(unit, acceptedTypes)
-    if not Client.CanAttack(unit) or not UnitCreatureType then
+-- only a localized name. Instance identity restrictions can hide both values.
+function Client.HasAttackableCreatureType(unit, acceptedTypes, spellID)
+    if not Client.CanAttack(unit) then
         return false
     end
 
-    local name, id = UnitCreatureType(unit)
-    if Client.Readable(id) and type(id) == "number" then
-        return acceptedTypes[id] == true
-    end
+    if UnitCreatureType then
+        local name, id = UnitCreatureType(unit)
+        if Client.Readable(id) and type(id) == "number" then
+            return acceptedTypes[id] == true
+        end
 
-    if not Client.Readable(name) or type(name) ~= "string"
-        or not C_CreatureInfo or not C_CreatureInfo.GetCreatureTypeInfo then
-        return false
-    end
+        if Client.Readable(name) and type(name) == "string"
+            and C_CreatureInfo and C_CreatureInfo.GetCreatureTypeInfo then
+            for acceptedID in pairs(acceptedTypes) do
+                local info = C_CreatureInfo.GetCreatureTypeInfo(acceptedID)
+                if Client.Readable(info) and info and Client.Readable(info.name) and name == info.name then
+                    return true
+                end
+            end
 
-    for acceptedID in pairs(acceptedTypes) do
-        local info = C_CreatureInfo.GetCreatureTypeInfo(acceptedID)
-        if Client.Readable(info) and info and Client.Readable(info.name) and name == info.name then
-            return true
+            return false
         end
     end
 
-    return false
+    return Client.CanSpellTargetUnit(spellID, unit)
 end
 
 function Client.HasGlowContext()

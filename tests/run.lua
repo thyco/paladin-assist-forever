@@ -50,6 +50,7 @@ local macro = '#showtooltip holy strike\n/cast judgement\n/cast holy strike\n/st
 local now = 100
 local known = { [1] = true, [2] = true, [7] = true }
 local cooldowns = {}
+local spellRanges = {}
 local secret = setmetatable({}, { __eq = function() error('secret comparison') end, __add = function() error('secret arithmetic') end })
 _G.issecretvalue = function(value) return rawequal(value, secret) end
 _G.GetTime = function() return now end
@@ -60,6 +61,11 @@ _G.C_Spell = {
         if value == 'Exorcism' or value == 7 then return { spellID = 7, name = 'Exorcism' } end
     end,
     GetSpellCooldown = function(id) return cooldowns[id] end,
+    IsSpellInRange = function(id, unit)
+        if id == 7 then
+            return spellRanges[unit]
+        end
+    end,
 }
 _G.C_SpellBook = { IsSpellKnown = function(id) return known[id] == true end }
 
@@ -1629,6 +1635,7 @@ local function exorcismFixture(settings)
     unitAttackable = {}
     unitDead = {}
     creatureTypes = {}
+    spellRanges = {}
     known[7] = true
     cooldowns = { [1] = cooling(), [2] = cooling(), [7] = ready() }
     _G.PaladinAssistForeverDB = settings or {
@@ -1682,6 +1689,43 @@ test('creature type helper handles localized names and restricted values', funct
     unitAttackable.mouseover = true
     creatureTypes.mouseover = { id = 6 }
     equal(instance.Client.HasAttackableCreatureType('mouseover', eligible), true)
+end)
+
+test('Exorcism uses a public target check when dungeon creature type is secret', function()
+    local instance, events = exorcismFixture()
+    unitPresence.target = true
+    unitAttackable.target = true
+    creatureTypes.target = { name = secret, id = secret }
+    spellRanges.target = true
+
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+
+    equal(overlays[ActionButton2].visible, true)
+    equal(ActionButton2.icon.desaturation, 0)
+
+    spellRanges.target = false
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[ActionButton2].visible, true)
+    equal(ActionButton2.icon.desaturation, 0)
+
+    spellRanges.target = nil
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[ActionButton2].visible, false)
+    equal(ActionButton2.icon.desaturation, 1)
+
+    creatureTypes.target = { id = 7 }
+    spellRanges.target = true
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(overlays[ActionButton2].visible, false)
+    equal(ActionButton2.icon.desaturation, 1)
+
+    unitPresence.mouseover = true
+    unitAttackable.mouseover = true
+    creatureTypes.mouseover = { name = secret, id = secret }
+    spellRanges.mouseover = false
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(overlays[ActionButton2].visible, true)
+    equal(ActionButton2.icon.desaturation, 0)
 end)
 
 test('Exorcism glows on its selected button for undead target or demon mouseover', function()
