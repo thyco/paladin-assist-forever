@@ -176,6 +176,7 @@ local function texture()
         SetTexture = function() end,
         SetBlendMode = function() end,
         SetVertexColor = function() end,
+        SetDesaturation = function(self, value) self.desaturation = value end,
         SetPoint = function() end,
         SetColorTexture = function(self, red, green, blue, alpha) self.color = { red, green, blue, alpha } end,
         SetSize = function() end,
@@ -254,21 +255,10 @@ _G.CreateFrame = function(_, _, parent)
 
     return frame
 end
+button.icon = texture()
+_G.ActionButton2.icon = texture()
 button.GetFrameLevel = function() return 1 end
 _G.ActionButton2.GetFrameLevel = function() return 1 end
-local function addButtonTextures(actionButton)
-    actionButton.CreateTexture = function(self)
-        self.createdTextures = self.createdTextures or {}
-        local created = texture()
-        self.createdTextures[#self.createdTextures + 1] = created
-        return created
-    end
-end
-addButtonTextures(button)
-addButtonTextures(_G.ActionButton2)
-local function latestButtonTexture(actionButton)
-    return actionButton.createdTextures and actionButton.createdTextures[#actionButton.createdTextures]
-end
 
 test('another owner keeps shared glow visible', function()
     addon.Glow.Set(button, 'first', true)
@@ -1607,6 +1597,8 @@ end)
 
 local function exorcismFixture(settings)
     playerInCombat = true
+    ActionButton1.icon:SetDesaturation(0)
+    ActionButton2.icon:SetDesaturation(0)
     unitPresence = {}
     unitAttackable = {}
     unitDead = {}
@@ -1780,30 +1772,46 @@ test('Exorcism can start disabled before its spell is discovered', function()
     equal(overlays[ActionButton2].visible, false)
 end)
 
-test('Exorcism button is grey when the reminder conditions fail', function()
+test('Exorcism icon is desaturated when the reminder conditions fail', function()
     local instance, events = exorcismFixture()
-    local shade = latestButtonTexture(ActionButton2)
+    local icon = ActionButton2.icon
 
-    equal(shade.visible, true)
-    equal(shade.color[1], shade.color[2])
-    equal(shade.color[2], shade.color[3])
+    equal(icon.desaturation, 0)
 
     unitPresence.target = true
     unitAttackable.target = true
+    creatureTypes.target = { id = 7 }
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(icon.desaturation, 1)
+
     creatureTypes.target = { id = 6 }
     events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
-    equal(shade.visible, false)
+    equal(icon.desaturation, 0)
     equal(overlays[ActionButton2].visible, true)
 
     cooldowns[7] = cooling()
     events.scripts.OnEvent(events, 'SPELL_UPDATE_COOLDOWN')
-    equal(shade.visible, true)
+    equal(icon.desaturation, 1)
     equal(overlays[ActionButton2].visible, false)
+
+    unitPresence.target = false
+    events.scripts.OnEvent(events, 'PLAYER_TARGET_CHANGED')
+    equal(icon.desaturation, 0)
+
+    unitPresence.mouseover = true
+    unitAttackable.mouseover = true
+    creatureTypes.mouseover = { id = 7 }
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(icon.desaturation, 1)
+
+    unitPresence.mouseover = false
+    events.scripts.OnEvent(events, 'UPDATE_MOUSEOVER_UNIT')
+    equal(icon.desaturation, 0)
 end)
 
 test('Exorcism button stays bright for a usable spell outside combat', function()
     local instance, events = exorcismFixture()
-    local shade = latestButtonTexture(ActionButton2)
+    local icon = ActionButton2.icon
     unitPresence.mouseover = true
     unitAttackable.mouseover = true
     creatureTypes.mouseover = { id = 3 }
@@ -1811,22 +1819,59 @@ test('Exorcism button stays bright for a usable spell outside combat', function(
 
     events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
 
-    equal(shade.visible, false)
+    equal(icon.desaturation, 0)
     equal(overlays[ActionButton2].visible, false)
 end)
 
-test('moving or disabling Exorcism clears its button shade', function()
+test('moving or disabling Exorcism restores icon saturation', function()
     local instance = exorcismFixture()
-    local previous = latestButtonTexture(ActionButton2)
-    equal(previous.visible, true)
+    local previous = ActionButton2.icon
+    unitPresence.target = true
+    creatureTypes.target = { id = 7 }
+    instance:Refresh(false)
+    equal(previous.desaturation, 1)
 
     instance.Config.Set('exorcismButton', 1)
-    local selected = latestButtonTexture(ActionButton1)
-    equal(previous.visible, false)
-    equal(selected.visible, true)
+    local selected = ActionButton1.icon
+    equal(previous.desaturation, 0)
+    equal(selected.desaturation, 1)
 
     instance.Config.Set('exorcismGlowEnabled', false)
-    equal(selected.visible, false)
+    equal(selected.desaturation, 0)
+end)
+
+test('icon desaturation survives native updates and shared ownership', function()
+    local instance = exorcismFixture()
+    local icon = texture()
+    local selected = { icon = icon }
+    local previousHook = _G.hooksecurefunc
+
+    selected.UpdateUsable = function(self)
+        self.icon:SetDesaturation(0)
+    end
+    _G.hooksecurefunc = function(object, method, callback)
+        local original = object[method]
+        object[method] = function(self, ...)
+            original(self, ...)
+            callback(self, ...)
+        end
+    end
+
+    instance.ButtonDesaturation.Prepare(selected)
+    instance.ButtonDesaturation.Set(selected, 'exorcism', true)
+    instance.ButtonDesaturation.Set(selected, 'other', true)
+    selected:UpdateUsable()
+    equal(icon.desaturation, 1)
+
+    instance.ButtonDesaturation.ClearOwner('exorcism')
+    selected:UpdateUsable()
+    equal(icon.desaturation, 1)
+
+    instance.ButtonDesaturation.ClearOwner('other')
+    selected:UpdateUsable()
+    equal(icon.desaturation, 0)
+
+    _G.hooksecurefunc = previousHook
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))

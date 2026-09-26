@@ -95,9 +95,13 @@ end
 
 -- Use attackability rather than reaction: neutral units that the player can
 -- attack also qualify, but corpses do not. Guard client values before branching.
-function Client.CanAttack(unit)
+function Client.HasUnit(unit)
     local exists = UnitExists(unit)
-    if not Client.Readable(exists) or not exists then
+    return Client.Readable(exists) and not not exists
+end
+
+function Client.CanAttack(unit)
+    if not Client.HasUnit(unit) then
         return false
     end
 

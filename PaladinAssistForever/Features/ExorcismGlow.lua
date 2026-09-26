@@ -22,12 +22,13 @@ function feature:Refresh(discover, cooldownEvent)
     local button = addon.Buttons.Selected(addon.Config.Get("exorcismBar"), addon.Config.Get("exorcismButton"))
     if self.button and self.button ~= button then
         addon.Glow.Set(self.button, self.owner, false)
-        addon.ButtonShade.Set(self.button, self.owner, false)
+        addon.ButtonDesaturation.Set(self.button, self.owner, false)
     end
 
     self.button = button
 
     local ready = addon.Cooldowns.IsReady(self.spellID, cooldownEvent) == true
+    local hasUnit = addon.Client.HasUnit("target") or addon.Client.HasUnit("mouseover")
     local usable = ready and (addon.Client.HasAttackableCreatureType("target", eligibleTypes)
         or addon.Client.HasAttackableCreatureType("mouseover", eligibleTypes))
     local combat = UnitAffectingCombat("player")
@@ -35,14 +36,14 @@ function feature:Refresh(discover, cooldownEvent)
 
     if button then
         local visible = button:IsVisible()
-        addon.ButtonShade.Set(button, self.owner, visible and not usable)
+        addon.ButtonDesaturation.Set(button, self.owner, visible and hasUnit and not usable)
         addon.Glow.Set(button, self.owner, visible and inCombat and usable)
     end
 end
 
 function feature:Stop()
     addon.Glow.ClearOwner(self.owner)
-    addon.ButtonShade.ClearOwner(self.owner)
+    addon.ButtonDesaturation.ClearOwner(self.owner)
     addon.Cooldowns.Invalidate(self.spellID)
     self.button = nil
 end
