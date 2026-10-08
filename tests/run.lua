@@ -69,6 +69,72 @@ _G.C_Spell = {
 }
 _G.C_SpellBook = { IsSpellKnown = function(id) return known[id] == true end }
 
+test('shield adapter needs readable shield equipment data', function()
+    local oldID, oldItem = GetInventoryItemID, C_Item
+    _G.GetInventoryItemID = function(_, slot) equal(slot, 17); return 901 end
+    _G.C_Item = { GetItemInfoInstant = function() return 901, nil, nil, 'INVTYPE_SHIELD' end }
+
+    local ok, message = pcall(function()
+        equal(addon.Client.HasShieldEquipped(), true)
+
+        _G.C_Item.GetItemInfoInstant = function() return 901, nil, nil, 'INVTYPE_WEAPONOFFHAND' end
+        equal(addon.Client.HasShieldEquipped(), false)
+
+        _G.C_Item.GetItemInfoInstant = function() return nil end
+        equal(addon.Client.HasShieldEquipped(), false)
+
+        _G.GetInventoryItemID = function() return secret end
+        equal(addon.Client.HasShieldEquipped(), false)
+    end)
+
+    _G.GetInventoryItemID, _G.C_Item = oldID, oldItem
+    assert(ok, message)
+end)
+
+test('spell icon adapter returns the client texture', function()
+    local oldTexture = C_Spell.GetSpellTexture
+    C_Spell.GetSpellTexture = function(id) equal(id, 8); return 12345 end
+
+    local ok, message = pcall(function()
+        equal(addon.Client.SpellIcon(8), 12345)
+    end)
+
+    C_Spell.GetSpellTexture = oldTexture
+    assert(ok, message)
+end)
+
+test('player aura adapter distinguishes present absent and restricted', function()
+    local oldAuras, oldSecrets, oldCombat = C_UnitAuras, C_Secrets, InCombatLockdown
+    _G.C_Secrets = { ShouldSpellAuraBeSecret = function() return false end }
+    _G.C_UnitAuras = { GetPlayerAuraBySpellID = function(id) equal(id, 8); return { expirationTime = 1200 } end }
+
+    local ok, message = pcall(function()
+        local status, expiration = addon.Client.PlayerAuraExpiration(8)
+        equal(status, 'present')
+        equal(expiration, 1200)
+
+        _G.C_UnitAuras.GetPlayerAuraBySpellID = function() return nil end
+        equal(addon.Client.PlayerAuraExpiration(8), 'absent')
+
+        _G.C_Secrets.ShouldSpellAuraBeSecret = function() return true end
+        equal(addon.Client.PlayerAuraExpiration(8), 'unknown')
+
+        _G.C_Secrets.ShouldSpellAuraBeSecret = function() return false end
+        _G.C_UnitAuras.GetPlayerAuraBySpellID = function() return { expirationTime = secret } end
+        equal(addon.Client.PlayerAuraExpiration(8), 'unknown')
+
+        _G.C_UnitAuras.GetPlayerAuraBySpellID = function() error('restricted') end
+        equal(addon.Client.PlayerAuraExpiration(8), 'unknown')
+
+        _G.C_Secrets = nil
+        _G.InCombatLockdown = function() return true end
+        equal(addon.Client.PlayerAuraExpiration(8), 'unknown')
+    end)
+
+    _G.C_UnitAuras, _G.C_Secrets, _G.InCombatLockdown = oldAuras, oldSecrets, oldCombat
+    assert(ok, message)
+end)
+
 local function ready() return { startTime = 0, duration = 0, isEnabled = true, isActive = false, modRate = 1 } end
 local function cooling() return { startTime = 99, duration = 6, isEnabled = true, isActive = true, modRate = 1 } end
 

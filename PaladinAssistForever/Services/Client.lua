@@ -29,6 +29,69 @@ function Client.SpellName(id)
     end
 end
 
+function Client.SpellIcon(id)
+    if not Client.Readable(id) or not id then
+        return nil
+    end
+
+    local getTexture = (C_Spell and C_Spell.GetSpellTexture) or GetSpellTexture
+    if not getTexture then
+        return nil
+    end
+
+    local ok, texture = pcall(getTexture, id)
+    if ok and Client.Readable(texture) then
+        return texture
+    end
+end
+
+function Client.HasShieldEquipped()
+    if not GetInventoryItemID or not C_Item or not C_Item.GetItemInfoInstant then
+        return false
+    end
+
+    local ok, itemID = pcall(GetInventoryItemID, 'player', 17)
+    if not ok or not Client.Readable(itemID) or not itemID then
+        return false
+    end
+
+    local itemOk, _, _, _, equipLocation = pcall(C_Item.GetItemInfoInstant, itemID)
+    return itemOk and Client.Readable(equipLocation) and equipLocation == 'INVTYPE_SHIELD' or false
+end
+
+function Client.PlayerAuraExpiration(spellID)
+    if not Client.Readable(spellID) or not spellID
+        or not C_UnitAuras or not C_UnitAuras.GetPlayerAuraBySpellID then
+        return 'unknown'
+    end
+
+    local isSecret = C_Secrets and C_Secrets.ShouldSpellAuraBeSecret
+    if isSecret then
+        local ok, restricted = pcall(isSecret, spellID)
+        if not ok or not Client.Readable(restricted) or restricted then
+            return 'unknown'
+        end
+    elseif InCombatLockdown and InCombatLockdown() then
+        return 'unknown'
+    end
+
+    local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
+    if not ok or not Client.Readable(aura) then
+        return 'unknown'
+    end
+
+    if aura == nil then
+        return 'absent'
+    end
+
+    local read, expiration = pcall(function() return aura.expirationTime end)
+    if not read or not Client.Readable(expiration) or type(expiration) ~= 'number' or expiration <= 0 then
+        return 'unknown'
+    end
+
+    return 'present', expiration
+end
+
 function Client.IsKnown(id)
     if not id then
         return false
