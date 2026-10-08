@@ -16,6 +16,15 @@ function Object:SetPoint() end
 function Object:ClearAllPoints() end
 function Object:SetAllPoints() end
 function Object:EnableMouse() end
+function Object:SetMovable() end
+function Object:RegisterForDrag() end
+function Object:StartMoving() end
+function Object:StopMovingOrSizing() end
+function Object:GetCenter() return 400, 300 end
+function Object:GetEffectiveScale() return 1 end
+function Object:GetWidth() return self.width end
+function Object:GetHeight() return self.height end
+function Object:SetTexture(texture) self.texture = texture end
 function Object:SetBlendMode() end
 function Object:SetAlpha() end
 function Object:SetVertexColor(r, g, b, a) self.color = { r, g, b, a } end
@@ -71,6 +80,7 @@ function Object:CreateAnimationGroup()
 end
 
 _G.UIParent = object()
+UIParent:SetSize(800, 600)
 _G.CreateFrame = function(_, _, parent) return object(parent) end
 _G.CreateTexturePool = function() return {} end
 _G.CreateFramePool = function(_, parent, _, resetter)
@@ -96,7 +106,7 @@ end
 -- Load libraries in their actual manifest order, then the real glow adapter.
 local addon = {}
 for line in io.lines('PaladinAssistForever/PaladinAssistForever.toc') do
-    if line:match('^Libs/.*%.lua$') or line == 'Services/Glow.lua' then
+    if line:match('^Libs/.*%.lua$') or line == 'Services/Glow.lua' or line == 'Services/PopupIcons.lua' then
         assert(loadfile('PaladinAssistForever/' .. line))('PaladinAssistForever', addon)
     end
 end
@@ -197,4 +207,16 @@ assert(loadfile('PaladinAssistForever/Libs/LibStub/LibStub.lua'))()
 assert(loadfile('PaladinAssistForever/Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua'))()
 assert(LibStub('LibCustomGlow-1.0') == library)
 print('PASS duplicate library loading preserves the registered library')
-print('\n10 integration checks passed')
+
+local popup = addon.PopupIcons.New('popup-flash', function() end)
+popup:SetVisible(true, false, true)
+local popupProc = addon.Glow.Prepare(popup.frame).frame._ProcGlowPaladinAssistForever
+assert(popupProc.ProcStartAnim:IsPlaying())
+local popupStarts = popupProc.ProcStartAnim.plays
+
+popup:SetVisible(true, false, true)
+assert(popupProc.ProcStartAnim:IsPlaying(), 'a second combat refresh must preserve the popup flash')
+assert(popupProc.ProcStartAnim.plays == popupStarts)
+print('PASS consecutive popup refreshes preserve the combat flash')
+
+print('\n11 integration checks passed')

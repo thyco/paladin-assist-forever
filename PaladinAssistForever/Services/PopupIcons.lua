@@ -71,11 +71,18 @@ end
 
 function PopupIcons:SetVisible(reminder, preview, flash)
     if reminder then
+        if not self.active then
+            self.flashStarted = not not flash
+        elseif not flash then
+            self.flashStarted = false
+        end
+
         self.frame:Show()
-        addon.Glow.Set(self.frame, self.owner, true, { startAnim = flash and not self.active })
+        addon.Glow.Set(self.frame, self.owner, true, { startAnim = self.flashStarted })
     else
         addon.Glow.Set(self.frame, self.owner, false)
         self.frame:SetShown(not not preview)
+        self.flashStarted = false
     end
 
     self.active = not not reminder
