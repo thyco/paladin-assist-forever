@@ -310,6 +310,7 @@ _G.CreateFrame = function(_, _, parent)
     function frame:SetBackdropBorderColor() end
     function frame:SetScrollChild(child) self.scrollChild = child end
     function frame:SetChecked(value) self.checked = value end
+    function frame:SetText(value) self.text = value end
     function frame:GetChecked() return self.checked end
     function frame:SetAllPoints() end
     function frame:SetFrameLevel() end
@@ -1400,7 +1401,7 @@ test('settings groups contain their own controls and update saved values', funct
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     local panel = instance.SettingsPanel
     local controls = panel.controls
-    equal(#panel.sections, 3)
+    equal(#panel.sections, 4)
     equal(panel.sections[1].backdrop.edgeSize, 1)
     equal(panel.sections[2].backdrop.edgeSize, 1)
     equal(panel.sections[3].backdrop.edgeSize, 1)
@@ -2198,6 +2199,69 @@ test('unlearned Righteous Fury remains hidden', function()
     withRighteousFury({ aura = 'absent', known = false }, function(instance)
         equal(instance.RighteousFuryReminder.popup.frame.visible, false)
     end)
+end)
+
+test('Righteous Fury settings resize and save dragged popup position', function()
+    withRighteousFury({ aura = 'unknown' }, function(instance)
+        local popup = instance.RighteousFuryReminder.popup
+        equal(instance.Config.Get('righteousFuryEnabled'), true)
+        equal(instance.Config.Get('righteousFuryPopupSize'), 64)
+
+        settingsByVariable.PaladinAssistForever_RighteousFuryPopupSize:SetValue(96)
+        equal(popup.frame.width, 96)
+
+        popup.frame.centerX, popup.frame.centerY = 450, 240
+        popup.frame.scripts.OnDragStop(popup.frame)
+        equal(instance.Config.Get('righteousFuryPopupX'), 50)
+        equal(instance.Config.Get('righteousFuryPopupY'), -60)
+
+        local reloaded, events = loadBootstrap('PALADIN')
+        events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+        equal(reloaded.RighteousFuryReminder.popup.frame.width, 96)
+        equal(reloaded.RighteousFuryReminder.popup.frame.point[4], 50)
+        equal(reloaded.RighteousFuryReminder.popup.frame.point[5], -60)
+    end)
+end)
+
+test('Righteous Fury placement preview is static and closes with settings', function()
+    withRighteousFury({ aura = 'absent', shield = false }, function(instance)
+        local popup = instance.RighteousFuryReminder.popup
+        local preview = instance.SettingsPanel.controls.righteousFuryPreview
+        equal(popup.frame.visible, false)
+
+        preview.scripts.OnClick(preview)
+        equal(popup.frame.visible, true)
+        equal(overlays[popup.frame].visible, false)
+
+        instance.SettingsPanel.canvas.scripts.OnHide(instance.SettingsPanel.canvas)
+        equal(popup.frame.visible, false)
+    end)
+end)
+
+test('disabling Righteous Fury while preview is open removes its glow', function()
+    withRighteousFury({ aura = 'absent' }, function(instance)
+        local popup = instance.RighteousFuryReminder.popup
+        equal(overlays[popup.frame].visible, true)
+
+        instance.SettingsPanel.controls.righteousFuryPreview.scripts.OnClick(
+            instance.SettingsPanel.controls.righteousFuryPreview)
+        equal(overlays[popup.frame].visible, false)
+
+        settingsByVariable.PaladinAssistForever_RighteousFuryEnabled:SetValue(false)
+
+        equal(overlays[popup.frame].visible, false)
+        equal(popup.frame.visible, true)
+    end)
+end)
+
+test('Righteous Fury preview does not start on a non-paladin', function()
+    _G.PaladinAssistForeverDB = {}
+    local instance, events = loadBootstrap('WARRIOR')
+    events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+    instance.SettingsPanel.canvas.scripts.OnHide(instance.SettingsPanel.canvas)
+
+    equal(instance.RighteousFuryReminder.popup, nil)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))

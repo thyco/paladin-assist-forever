@@ -81,7 +81,7 @@ function feature:Refresh()
 
     local combat = UnitAffectingCombat('player')
     local flash = addon.Client.Readable(combat) and not not combat
-    local due = addon.Config.Get(self.settingKey)
+    local due = not self.preview and addon.Config.Get(self.settingKey)
         and addon.Client.IsKnown(self.spellID)
         and addon.Client.HasShieldEquipped()
         and self.timer:IsDue()
@@ -90,6 +90,10 @@ function feature:Refresh()
 end
 
 function feature:SetPreview(show)
+    if not addon.started then
+        return
+    end
+
     self.preview = not not show
     self:Refresh()
 end

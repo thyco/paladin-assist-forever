@@ -67,7 +67,7 @@ function panel:Initialize()
     scroll:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, -8)
     scroll:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -28, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(580, 1020)
+    content:SetSize(580, 1250)
     scroll:SetScrollChild(content)
     scroll:SetScript("OnSizeChanged", function(_, width)
         content:SetWidth(math.max(1, width))
@@ -82,8 +82,10 @@ function panel:Initialize()
     local holy = widgets.Section(content, "Holy Strike / Judgement", "Combat only · Judgement color takes priority", -64, 386)
     local seal = widgets.Section(content, "Seal reminder", "Combat or a living attackable target / mouseover", -466, 256)
     local exorcism = widgets.Section(content, "Exorcism", "Combat only · living attackable undead or demon", -738, 256)
+    local righteousFury = widgets.Section(content, 'Righteous Fury',
+        'Floating buff reminder · requires an equipped shield', -1010, 224)
 
-    self.sections = { holy, seal, exorcism }
+    self.sections = { holy, seal, exorcism, righteousFury }
 
     checkbox(holy, "cooldownGlowEnabled", "PaladinAssistForever_CooldownGlowEnabled",
         "Holy strike glow on Holy strike and judgement", -62,
@@ -127,8 +129,35 @@ function panel:Initialize()
         "Custom glow color", -216,
         "Applies when Blizzard native glow is unchecked. Cancel restores the previous color.")
 
+    checkbox(righteousFury, 'righteousFuryEnabled', 'PaladinAssistForever_RighteousFuryEnabled',
+        'Enable Righteous Fury reminder', -62,
+        'Show a floating icon with native glow when Righteous Fury is absent or has five minutes remaining. Requires a shield.')
+
+    local sizes = {}
+    for pixels = 32, 128, 8 do
+        sizes[#sizes + 1] = { value = pixels, label = pixels .. ' pixels' }
+    end
+
+    local size = registerSetting('righteousFuryPopupSize', 'PaladinAssistForever_RighteousFuryPopupSize',
+        'Popup size', Settings.VarType.Number)
+    self.controls.righteousFuryPopupSize = widgets.Dropdown(righteousFury, 'Popup size', -110, size, sizes,
+        'Choose the size of the movable Righteous Fury icon.')
+
+    self.controls.righteousFuryPreview = widgets.ActionButton(righteousFury, function()
+        return addon.RighteousFuryReminder.preview and 'End positioning preview' or 'Preview and position'
+    end, -158, function()
+        local feature = addon.RighteousFuryReminder
+        feature:SetPreview(not feature.preview)
+    end, 'Shows a static icon for dragging, even without a shield. Closes when you leave settings.')
+
+    widgets.Text(righteousFury, 'Drag the preview to save its position.', 20, -197)
+
     canvas:SetScript("OnShow", function()
         content:SetWidth(math.max(1, scroll:GetWidth()))
+        self:Refresh()
+    end)
+    canvas:SetScript('OnHide', function()
+        addon.RighteousFuryReminder:SetPreview(false)
         self:Refresh()
     end)
     addon.Config.Subscribe(function()

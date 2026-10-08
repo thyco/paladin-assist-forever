@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.8.6 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over.
+An expandable, paladin-only addon for WoW Forever. Version 0.9.0 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over. A floating Righteous Fury icon reminds shield users to refresh the buff.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.8.6.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.9.0.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -26,7 +26,7 @@ Open `/paf config` and choose **Action bar** and **Button** in the **Holy Strike
 
 Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 
-The panel has three bordered groups: **Holy Strike / Judgement**, **Seal reminder**, and **Exorcism**. Each contains its own enable toggle, bar/button selectors and color controls. Scroll when needed; changes apply immediately and existing saved preferences are retained.
+The panel has four bordered groups: **Holy Strike / Judgement**, **Seal reminder**, **Exorcism**, and **Righteous Fury**. The first three configure action-button reminders; Righteous Fury configures a floating icon. Scroll when needed; changes apply immediately and existing saved preferences are retained.
 
 - **Holy strike glow on Holy strike and judgement** is checked by default. Its default position is **Bottom right bar → Button 3**; you can change it below the checkbox.
 - **Check Holy Strike** is on by default. Uncheck it if you want only Judgement readiness to trigger the selected button.
@@ -60,6 +60,12 @@ In `/paf config`, check **Enable seal reminder** (enabled by default) inside the
 - If both reminders target the same button, the seal color takes priority while a seal refresh is due. When you cast a seal, the Holy Strike glow resumes if you are in combat and either tracked attack is ready.
 - English spell names are supported across ranks: Righteousness, the Crusader, Command, Justice, Light, Wisdom, Fury, Blood, the Martyr, Vengeance and Corruption, all prefixed with “Seal of”. No cast is executed by the addon.
 
+## Righteous Fury reminder
+
+The **Righteous Fury** group enables a floating spell icon by default. It appears with Blizzard's native proc glow in or out of combat when Righteous Fury is missing or has at most five minutes remaining, but only while a shield is equipped in the off-hand slot. The addon never casts the spell. Select **Preview and position** to show a static icon for dragging, even without a shield; closing settings ends the preview. The size selector offers 32–128 pixels in eight-pixel steps, with 64 pixels as the default. Size and position are saved.
+
+The addon assumes Righteous Fury lasts 30 minutes. A successful cast starts a 25-minute reminder timer, including while the reminder is disabled. When the client allows a readable player-aura lookup, the addon uses its actual expiration time. This can recover the remaining time after a login or reload and detect an early removal. If the Forever beta restricts that aura, it retains the cast timer; if neither source supplies a deadline, the reminder is immediately due. Aura state and timer estimates are session-local. A brief grace period after a cast lets the new aura appear before a readable absence is treated as a missing buff. Equipment changes update visibility without resetting timing.
+
 ## Diagnostics
 
 Type `/paf` to print the client build/interface, all selected bar/button positions, spell IDs, cooldown states, seal timer diagnostics, and the number of ignored Seal of Command procs. If a target says **not selected**, choose its bar and button in `/paf config`.
@@ -76,25 +82,26 @@ The library copy is the same minor version 25 bundled with DK Force. See `Paladi
 
 ## Reuse and extension
 
-Every file receives the private addon namespace through `local _, addon = ...`. Services contain no paladin spell names. Spell-specific rules live in `Features/HolyStrikeGlow.lua`, `Features/ExorcismGlow.lua`, and `Features/SealReminder.lua`.
+Every file receives the private addon namespace through `local _, addon = ...`. Services contain no paladin spell names. Spell-specific rules live in `Features/HolyStrikeGlow.lua`, `Features/ExorcismGlow.lua`, `Features/SealReminder.lua`, and `Features/RighteousFuryReminder.lua`.
 
 | Module | Reusable interface | Responsibility |
 | --- | --- | --- |
-| `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)`, `HasGlowContext()`, `HasUnit(unit)`, `CanSpellTargetUnit(spellID, unit)`, `HasAttackableCreatureType(unit, types, spellID)` | Adapts modern APIs and available legacy equivalents; isolates client changes and guarded creature-type reads. |
+| `Services/Client.lua` | `SpellID(name)`, `SpellName(id)`, `SpellIcon(id)`, `IsKnown(id)`, `Cooldown(id)`, `Action(slot)`, `Readable(value)`, `HasShieldEquipped()`, `PlayerAuraExpiration(id)`, `HasGlowContext()`, `HasUnit(unit)`, `CanSpellTargetUnit(spellID, unit)`, `HasAttackableCreatureType(unit, types, spellID)` | Adapts modern APIs and available legacy equivalents; isolates client changes and guards restricted reads. |
 | `Services/Macros.lua` | `Casts(body, spellName)` | Exact, case-insensitive matching of simple cast lines; never executes macros. |
 | `Services/Buttons.lua` | `All()`, `FindSpell(spellName)`, `Bars()`, `Selected(bar, index)` | Enumerates default buttons and resolves current slots, including macros and paging. |
 | `Services/Glow.lua` | `Prepare(button)`, `Set(button, owner, active, options)`, `ClearOwner(owner)`, `Configure(options)`, `ConfigureOwner(owner, options)` | Renders LibCustomGlow proc animations on reused addon-owned overlays. Multiple features may own one glow; one owner cannot clear another's request. |
+| `Services/PopupIcons.lua` | `New(owner, onMoved)` → `SetIcon`, `SetSize`, `SetPosition`, `SetVisible` | Owns a movable, clamped frame and delegates its visual effect to Glow. |
 | `Services/ButtonDesaturation.lua` | `Prepare(button)`, `Set(button, owner, active)`, `ClearOwner(owner)` | Desaturates the existing action icon to grayscale without changing action attributes or casting; multiple features can request it independently. |
 | `Services/Cooldowns.lua` | `IsReady(spellID, cooldownEvent)`, `AnyReady(spellIDs, cooldownEvent)`, `Invalidate(spellID)` | Evaluates ordinary, non-charge spell cooldowns. `IsReady` returns true, false, or nil for unavailable data; `AnyReady` returns a boolean. |
 | `Services/Timers.lua` | `New()` → `Start(seconds)`, `SetDuration(seconds)`, `IsDue()`, `Remaining()`, `Clear()` | Independent session timers; no aura reads. Missing timers are due. |
 | `Services/Config.lua` | `Initialize()`, `Get(key)`, `GetDefault(key)`, `GetColor(key)`, `Set(key, value)`, `Subscribe(listener)` | Saves typed defaults and preferences; notifies consumers when a setting changes. |
-| `Services/SettingsWidgets.lua` | `Section`, `Text`, `Checkbox`, `Dropdown`, `Color` | Reusable bordered settings groups and controls; setters use existing proxy settings. |
+| `Services/SettingsWidgets.lua` | `Section`, `Text`, `Checkbox`, `Dropdown`, `Color`, `ActionButton` | Reusable bordered settings groups and controls; setters use existing proxy settings. |
 | `SettingsPanel.lua` | `Initialize()`, `Open()` | Registers a scrollable canvas in the native AddOns category, with a bordered group for each reminder. |
 | `Core.lua` | `RegisterFeature(feature)` | Starts paladin features and calls `Refresh(discover, cooldownEvent)` only when their optional `settingKey` is enabled. Calls `Stop()` immediately when disabled. Optional `ApplySettings()` configures feature appearance; `OnEvent(event, ...)` continues observing events even while disabled. |
 
 `Glow.Configure({ color = nil })` selects native artwork; pass `{ color = { r, g, b, a } }` for a shared custom tint. The service copies the color and updates active effects without replaying their initial flash. `Glow.Set` accepts optional `{ startAnim = false }` to skip or cancel startup animation; the seal feature uses this outside combat. Use `Glow.ConfigureOwner(owner, { color = ..., priority = ... })` for independent feature colors; higher priority wins on shared buttons, and owner names break ties deterministically. Saved preferences stay in Config; Glow remains independent of the settings panel.
 
-Automatic spell discovery remains available as a reusable service for future features, but all current reminders use manual selection. A future feature can reuse discovery and rendering without copying them:
+Automatic action-button discovery remains available as a reusable service for future features. Existing action-button reminders use manual selection; Righteous Fury uses a floating popup. A future feature can reuse discovery and rendering without copying them:
 
 ```lua
 local _, addon = ...
@@ -144,6 +151,7 @@ In-game acceptance checks:
 - Uncheck **Check Holy Strike**: only Judgement readiness should trigger the glow, even when Holy Strike is ready. Re-enable it and confirm Holy Strike can trigger the glow again.
 - With Exorcism ready, target a living attackable undead or demon in combat and confirm its selected button glows with a full-color icon. Repeat with only a mouseover, including inside a dungeon where creature type may be restricted. Switch to an attackable humanoid, or start Exorcism's cooldown with a living attackable unit selected: the glow should clear and the icon should turn grayscale. Switch to a friendly unit or dead enemy, or clear both target and mouseover: the icon should return to color, even if Exorcism is on cooldown. Outside combat with a valid target, the glow should be off and the icon should look normal. Disable the Exorcism setting and confirm the icon returns to color. A restricted range result remains ineligible and should not cause a Lua error.
 - Choose your seal bar/button, cast a seal out of combat, enter combat, and confirm only the selected button turns red at the configured delay (26 seconds by default). Cast another seal and confirm the glow disappears immediately. Repeat the cast in combat to check event visibility in your client.
+- With a shield equipped, check Righteous Fury after login, after a cast in combat, and near five minutes remaining. Remove and re-equip the shield; the popup should hide and recover without resetting its timer. Drag the positioning preview, change its size, then reload to check saved placement. Test both readable aura recovery and restricted-aura timer fallback in the Forever beta.
 - Change the selected button and color, disable/re-enable the reminder, and confirm no leftover glow. Check the shared-button priority if you deliberately select the Holy Strike button.
 - Report `/paf` output and any Lua error if a beta API differs.
 

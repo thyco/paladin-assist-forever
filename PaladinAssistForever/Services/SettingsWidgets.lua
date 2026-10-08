@@ -102,6 +102,23 @@ function Widgets.Dropdown(parent, label, y, setting, options, tooltip)
     return dropdown
 end
 
+function Widgets.ActionButton(parent, label, y, onClick, tooltip)
+    local button = CreateFrame('Button', nil, parent, 'UIPanelButtonTemplate')
+    button:SetPoint('TOPLEFT', parent, 'TOPLEFT', 20, y)
+    button:SetSize(220, 26)
+    button:SetScript('OnClick', function()
+        onClick()
+        button.refresh()
+    end)
+    button.refresh = function()
+        button:SetText(type(label) == 'function' and label() or label)
+    end
+
+    button.refresh()
+    Widgets.Tooltip(button, tooltip)
+    return button
+end
+
 function Widgets.Color(parent, label, y, setting, tooltip)
     Widgets.Text(parent, label, 20, y - 5, "GameFontHighlight")
     local swatch = CreateFrame("Button", nil, parent, "BackdropTemplate")
