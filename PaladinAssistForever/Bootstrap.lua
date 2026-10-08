@@ -21,6 +21,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
         self:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
         self:RegisterEvent("PLAYER_DEAD")
+        self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
         self:RegisterEvent("PLAYER_TARGET_CHANGED")
         self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
         for _, name in ipairs(discoveryEvents) do

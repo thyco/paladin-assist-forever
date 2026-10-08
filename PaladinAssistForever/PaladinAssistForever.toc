@@ -23,6 +23,7 @@ Services/Timers.lua
 Features/HolyStrikeGlow.lua
 Features/ExorcismGlow.lua
 Features/SealReminder.lua
+Features/RighteousFuryReminder.lua
 Services/SettingsWidgets.lua
 SettingsPanel.lua
 Bootstrap.lua

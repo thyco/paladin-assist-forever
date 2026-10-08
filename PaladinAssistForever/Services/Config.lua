@@ -21,6 +21,10 @@ local defaults = {
     sealBar = 3,
     sealButton = 4,
     sealGlowColor = "ffff0000",
+    righteousFuryEnabled = true,
+    righteousFuryPopupSize = 64,
+    righteousFuryPopupX = 0,
+    righteousFuryPopupY = -160,
 }
 local values
 local listeners = {}
@@ -36,6 +40,14 @@ local function validValue(key, value)
 
     if key == "sealReminderSeconds" then
         return value >= 1 and value <= 30 and value == math.floor(value)
+    end
+
+    if key == "righteousFuryPopupSize" then
+        return value >= 32 and value <= 128 and value % 8 == 0
+    end
+
+    if key == "righteousFuryPopupX" or key == "righteousFuryPopupY" then
+        return value >= -4096 and value <= 4096 and value == math.floor(value)
     end
 
     if key == "sealBar" or key == "holyStrikeBar" or key == "exorcismBar" then

@@ -48,7 +48,7 @@ end
 
 local macro = '#showtooltip holy strike\n/cast judgement\n/cast holy strike\n/startattack'
 local now = 100
-local known = { [1] = true, [2] = true, [7] = true }
+local known = { [1] = true, [2] = true, [7] = true, [8] = true }
 local cooldowns = {}
 local spellRanges = {}
 local secret = setmetatable({}, { __eq = function() error('secret comparison') end, __add = function() error('secret arithmetic') end })
@@ -59,6 +59,7 @@ _G.C_Spell = {
         if value == 'Holy Strike' or value == 1 then return { spellID = 1, name = 'Holy Strike' } end
         if value == 'Judgement' or value == 2 then return { spellID = 2, name = 'Judgement' } end
         if value == 'Exorcism' or value == 7 then return { spellID = 7, name = 'Exorcism' } end
+        if value == 'Righteous Fury' or value == 8 then return { spellID = 8, name = 'Righteous Fury' } end
     end,
     GetSpellCooldown = function(id) return cooldowns[id] end,
     IsSpellInRange = function(id, unit)
@@ -2077,6 +2078,126 @@ test('icon desaturation survives native updates and shared ownership', function(
     equal(icon.desaturation, 0)
 
     _G.hooksecurefunc = previousHook
+end)
+
+local function withRighteousFury(options, run)
+    local oldID, oldItem, oldAuras, oldSecrets = GetInventoryItemID, C_Item, C_UnitAuras, C_Secrets
+    local oldKnown = known[8]
+    local state = { aura = options.aura or 'unknown', expiration = options.expiration, shield = options.shield ~= false }
+    now = 100
+    known[8] = options.known ~= false
+    _G.PaladinAssistForeverDB = { cooldownGlowEnabled = false, exorcismGlowEnabled = false,
+        sealGlowEnabled = false, righteousFuryEnabled = options.enabled ~= false }
+    _G.GetInventoryItemID = function(_, slot) equal(slot, 17); return state.shield and 901 or nil end
+    _G.C_Item = { GetItemInfoInstant = function() return 901, nil, nil, 'INVTYPE_SHIELD' end }
+    _G.C_Secrets = { ShouldSpellAuraBeSecret = function() return state.aura == 'unknown' end }
+    _G.C_UnitAuras = { GetPlayerAuraBySpellID = function(id)
+        equal(id, 8)
+        if state.aura == 'present' then return { expirationTime = state.expiration } end
+    end }
+
+    local ok, message = pcall(function()
+        local instance, events = loadBootstrap('PALADIN')
+        events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+
+        local controls = {
+            state = state,
+            cast = function()
+                events.scripts.OnEvent(events, 'UNIT_SPELLCAST_SUCCEEDED', 'player', 'guid', 8)
+            end,
+            tick = function(time)
+                now = time
+                events.scripts.OnUpdate(events, 0.1)
+            end,
+        }
+
+        run(instance, events, controls)
+    end)
+
+    _G.GetInventoryItemID, _G.C_Item, _G.C_UnitAuras, _G.C_Secrets = oldID, oldItem, oldAuras, oldSecrets
+    known[8] = oldKnown
+    assert(ok, message)
+end
+
+test('Righteous Fury readable buff appears at five minutes remaining', function()
+    withRighteousFury({ aura = 'present', expiration = 1300 }, function(instance, _, controls)
+        local popup = instance.RighteousFuryReminder.popup
+        equal(popup.frame.visible, false)
+
+        controls.tick(999.99)
+        equal(popup.frame.visible, false)
+
+        controls.tick(1000)
+        equal(popup.frame.visible, true)
+    end)
+end)
+
+test('Righteous Fury missing buff appears immediately and cast grace hides it', function()
+    withRighteousFury({ aura = 'absent' }, function(instance, _, controls)
+        local popup = instance.RighteousFuryReminder.popup
+        equal(popup.frame.visible, true)
+
+        controls.cast()
+        equal(popup.frame.visible, false)
+
+        controls.tick(101.9)
+        equal(popup.frame.visible, false)
+
+        controls.tick(102)
+        equal(popup.frame.visible, true)
+    end)
+end)
+
+test('Righteous Fury restricted aura uses and restarts cast timer', function()
+    withRighteousFury({ aura = 'unknown' }, function(instance, _, controls)
+        local popup = instance.RighteousFuryReminder.popup
+        equal(popup.frame.visible, true)
+
+        controls.cast()
+        equal(popup.frame.visible, false)
+
+        controls.tick(1599.99)
+        equal(popup.frame.visible, false)
+
+        controls.tick(1600)
+        equal(popup.frame.visible, true)
+
+        controls.cast()
+        equal(popup.frame.visible, false)
+        controls.tick(1601)
+        equal(popup.frame.visible, false)
+    end)
+end)
+
+test('Righteous Fury tracks timing while disabled and hides without shield', function()
+    withRighteousFury({ aura = 'unknown', enabled = false }, function(instance, events, controls)
+        local popup = instance.RighteousFuryReminder.popup
+        equal(popup.frame.visible, false)
+
+        controls.cast()
+        instance.Config.Set('righteousFuryEnabled', true)
+        equal(popup.frame.visible, false)
+
+        controls.tick(1600)
+        equal(popup.frame.visible, true)
+
+        controls.state.shield = false
+        events.scripts.OnEvent(events, 'PLAYER_EQUIPMENT_CHANGED')
+        equal(popup.frame.visible, false)
+
+        controls.state.shield = true
+        events.scripts.OnEvent(events, 'PLAYER_EQUIPMENT_CHANGED')
+        equal(popup.frame.visible, true)
+
+        events.scripts.OnEvent(events, 'PLAYER_DEAD')
+        equal(popup.frame.visible, true)
+    end)
+end)
+
+test('unlearned Righteous Fury remains hidden', function()
+    withRighteousFury({ aura = 'absent', known = false }, function(instance)
+        equal(instance.RighteousFuryReminder.popup.frame.visible, false)
+    end)
 end)
 
 print(string.format('\n%d passed; %d failed', passed, failed))
