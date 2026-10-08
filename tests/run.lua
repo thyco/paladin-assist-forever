@@ -37,7 +37,7 @@ _G.LibStub = function(name)
 end
 
 local addon = {}
-local files = { 'Core', 'Services/Config', 'Services/Client', 'Services/Macros', 'Services/Buttons', 'Services/Glow', 'Services/Cooldowns', 'Features/HolyStrikeGlow' }
+local files = { 'Core', 'Services/Config', 'Services/Client', 'Services/Macros', 'Services/Buttons', 'Services/Glow', 'Services/PopupIcons', 'Services/Cooldowns', 'Features/HolyStrikeGlow' }
 for _, name in ipairs(files) do
     local chunk = loadfile('PaladinAssistForever/' .. name .. '.lua')
 
@@ -245,7 +245,7 @@ local lastFrame
 local function texture()
     return {
         SetAllPoints = function(self, anchor) self.anchor = anchor end,
-        SetTexture = function() end,
+        SetTexture = function(self, value) self.texture = value end,
         SetBlendMode = function() end,
         SetVertexColor = function() end,
         SetDesaturation = function(self, value) self.desaturation = value end,
@@ -284,6 +284,8 @@ _G.UnitAffectingCombat = function(unit)
     return playerInCombat
 end
 _G.InCombatLockdown = function() return false end
+_G.UIParent = { GetWidth = function() return 800 end, GetHeight = function() return 600 end,
+    GetCenter = function() return 400, 300 end, GetEffectiveScale = function() return 1 end }
 _G.CreateFrame = function(_, _, parent)
     local frame = { parent = parent, visible = false }
     local function fontString()
@@ -298,6 +300,10 @@ _G.CreateFrame = function(_, _, parent)
     function frame:SetHeight(height) self.height = height end
     function frame:SetWidth(width) self.width = width end
     function frame:GetWidth() return self.width or 580 end
+    function frame:GetHeight() return self.height or 480 end
+    function frame:GetCenter() return self.centerX or 400, self.centerY or 300 end
+    function frame:GetEffectiveScale() return 1 end
+    function frame:GetFrameLevel() return 1 end
     function frame:SetBackdrop(value) self.backdrop = value end
     function frame:SetBackdropColor() end
     function frame:SetBackdropBorderColor() end
@@ -307,11 +313,16 @@ _G.CreateFrame = function(_, _, parent)
     function frame:SetAllPoints() end
     function frame:SetFrameLevel() end
     function frame:EnableMouse() end
+    function frame:SetMovable(value) self.movable = value end
+    function frame:RegisterForDrag(buttonName) self.dragButton = buttonName end
+    function frame:StartMoving() self.moving = true end
+    function frame:StopMovingOrSizing() self.moving = false end
+    function frame:ClearAllPoints() self.point = nil end
     function frame:CreateTexture() return texture() end
     function frame:Show() self.visible = true end
     function frame:Hide() self.visible = false end
     function frame:SetShown(show) self.visible = show end
-    function frame:SetPoint() end
+    function frame:SetPoint(...) self.point = { ... } end
     function frame:CreateAnimationGroup()
         return { SetLooping = function() end, Play = function() end, Stop = function() end, CreateAnimation = function() return { SetFromAlpha = function() end, SetToAlpha = function() end, SetDuration = function() end, SetSmoothing = function() end } end }
     end
@@ -331,6 +342,56 @@ button.icon = texture()
 _G.ActionButton2.icon = texture()
 button.GetFrameLevel = function() return 1 end
 _G.ActionButton2.GetFrameLevel = function() return 1 end
+
+test('popup reminder glows and preview stays static', function()
+    local popup = addon.PopupIcons.New('popup-test', function() end)
+    equal(popup.frame.width, 64)
+
+    popup:SetVisible(true, false, false)
+    equal(popup.frame.visible, true)
+    equal(overlays[popup.frame].visible, true)
+    equal(overlays[popup.frame].procStartAnimation, false)
+
+    popup:SetVisible(false, true, false)
+    equal(popup.frame.visible, true)
+    equal(overlays[popup.frame].visible, false)
+
+    popup:SetVisible(false, false, false)
+    equal(popup.frame.visible, false)
+end)
+
+test('popup saves dragged offsets and clamps stored position', function()
+    local savedX, savedY
+    local popup = addon.PopupIcons.New('popup-drag', function(x, y) savedX, savedY = x, y end)
+
+    popup:SetPosition(9999, -9999)
+    equal(popup.frame.point[4], 368)
+    equal(popup.frame.point[5], -268)
+
+    popup.frame.centerX, popup.frame.centerY = 460, 250
+    popup.frame.scripts.OnDragStop(popup.frame)
+    equal(savedX, 60)
+    equal(savedY, -50)
+end)
+
+test('popup uses placeholder and prepares its glow during combat', function()
+    local oldCombat = InCombatLockdown
+    _G.InCombatLockdown = function() return true end
+
+    local ok, message = pcall(function()
+        equal(addon.Glow.Prepare({ GetFrameLevel = function() return 1 end }), nil)
+
+        local popup = addon.PopupIcons.New('popup-combat', function() end)
+        popup:SetIcon(nil)
+        equal(popup.texture.texture, 'Interface\\Icons\\INV_Misc_QuestionMark')
+
+        popup:SetVisible(true, false, true)
+        equal(overlays[popup.frame].visible, true)
+    end)
+
+    _G.InCombatLockdown = oldCombat
+    assert(ok, message)
+end)
 
 test('another owner keeps shared glow visible', function()
     addon.Glow.Set(button, 'first', true)

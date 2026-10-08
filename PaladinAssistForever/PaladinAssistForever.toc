@@ -16,6 +16,7 @@ Services/Client.lua
 Services/Macros.lua
 Services/Buttons.lua
 Services/Glow.lua
+Services/PopupIcons.lua
 Services/ButtonDesaturation.lua
 Services/Cooldowns.lua
 Services/Timers.lua

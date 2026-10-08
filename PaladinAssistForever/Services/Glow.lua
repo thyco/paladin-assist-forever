@@ -97,13 +97,13 @@ function Glow.ConfigureOwner(owner, options)
     end
 end
 
-function Glow.Prepare(button)
+function Glow.Prepare(button, allowInCombat)
     if entries[button] then
         return entries[button]
     end
 
     -- Prepare default buttons on login and after combat, including empty ones.
-    if InCombatLockdown() then
+    if InCombatLockdown() and not allowInCombat then
         return nil
     end
 
