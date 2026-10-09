@@ -10,11 +10,13 @@ local prefixes = {
 
 -- Stable physical bar/button selections, independent of spell discovery.
 function Buttons.Bars()
-    return {
-        "Main bar", "Bottom left bar", "Bottom right bar",
-        "Right bar", "Left bar (second right bar)", "Action bar 6",
-        "Action bar 7", "Action bar 8",
-    }
+    local bars = {}
+
+    for index = 1, #prefixes do
+        bars[index] = "Action Bar " .. index
+    end
+
+    return bars
 end
 
 function Buttons.Selected(bar, index)

@@ -240,6 +240,15 @@ test('button paging follows current action slot', function()
     button.action = 1
 end)
 
+test('default action bars have numbered labels without changing selection order', function()
+    local labels = addon.Buttons.Bars()
+    equal(#labels, 8)
+
+    for index = 1, 8 do
+        equal(labels[index], 'Action Bar ' .. index)
+    end
+end)
+
 -- Only frame rendering is simulated; ownership and feature rules run for real.
 local overlays = {}
 local lastFrame
@@ -1491,9 +1500,9 @@ test('dropdown captions stay independent of the shared seconds popup', function(
     events.scripts.OnEvent(events, 'PLAYER_LOGIN')
     local controls = instance.SettingsPanel.controls
 
-    equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
+    equal(controls.holyStrikeBar.menuText, 'Action Bar 2')
     equal(controls.holyStrikeButton.menuText, 'Button 4')
-    equal(controls.sealBar.menuText, 'Main bar')
+    equal(controls.sealBar.menuText, 'Action Bar 1')
     equal(controls.sealButton.menuText, 'Button 7')
     equal(controls.sealReminderSeconds.menuText, '26 seconds')
 
@@ -1502,9 +1511,9 @@ test('dropdown captions stay independent of the shared seconds popup', function(
     menuItems[24].func()
     instance.SettingsPanel.canvas.scripts.OnShow()
 
-    equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
+    equal(controls.holyStrikeBar.menuText, 'Action Bar 2')
     equal(controls.holyStrikeButton.menuText, 'Button 4')
-    equal(controls.sealBar.menuText, 'Main bar')
+    equal(controls.sealBar.menuText, 'Action Bar 1')
     equal(controls.sealButton.menuText, 'Button 7')
     equal(controls.sealReminderSeconds.menuText, '24 seconds')
     equal(instance.Config.Get('holyStrikeBar'), 2)
@@ -1522,7 +1531,7 @@ test('refreshing other settings does not change the open menu checkmarks', funct
 
     equal(menuItems[3].checked, true)
     equal(menuItems[2].checked, false)
-    equal(controls.holyStrikeBar.menuText, 'Bottom left bar')
+    equal(controls.holyStrikeBar.menuText, 'Action Bar 2')
     equal(controls.sealReminderSeconds.menuText, '24 seconds')
 end)
 
@@ -1542,9 +1551,9 @@ test('lost saved settings restore bottom right buttons three and four', function
     equal(instance.SealReminder.button, seal)
     equal(overlays[holy].visible, true)
     equal(overlays[seal].visible, true)
-    equal(instance.SettingsPanel.controls.holyStrikeBar.menuText, 'Bottom right bar')
+    equal(instance.SettingsPanel.controls.holyStrikeBar.menuText, 'Action Bar 3')
     equal(instance.SettingsPanel.controls.holyStrikeButton.menuText, 'Button 3')
-    equal(instance.SettingsPanel.controls.sealBar.menuText, 'Bottom right bar')
+    equal(instance.SettingsPanel.controls.sealBar.menuText, 'Action Bar 3')
     equal(instance.SettingsPanel.controls.sealButton.menuText, 'Button 4')
     _G.MultiBarBottomRightButton3 = nil
     _G.MultiBarBottomRightButton4 = nil
@@ -1911,7 +1920,7 @@ test('Exorcism defaults to native on bottom right button five', function()
     equal(instance.Config.Get('exorcismBar'), 3)
     equal(instance.Config.Get('exorcismButton'), 5)
     equal(instance.Config.Get('exorcismNativeColor'), true)
-    equal(instance.SettingsPanel.controls.exorcismBar.menuText, 'Bottom right bar')
+    equal(instance.SettingsPanel.controls.exorcismBar.menuText, 'Action Bar 3')
     equal(instance.SettingsPanel.controls.exorcismButton.menuText, 'Button 5')
 end)
 

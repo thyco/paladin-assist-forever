@@ -1,12 +1,12 @@
 # Paladin Assist Forever
 
-An expandable, paladin-only addon for WoW Forever. Version 0.9.0 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over. A floating Righteous Fury icon reminds shield users to refresh the buff.
+An expandable, paladin-only addon for WoW Forever. Version 0.9.1 provides an animated Blizzard-style proc glow to one manually selected default action-bar button while you are **in combat** and either **Judgement** or enabled **Holy Strike** is off cooldown. The same button glows for both spells; a separate Judgement button is not highlighted. Exorcism has its own combat-only button glow when a living attackable undead or demon is selected or moused over. A floating Righteous Fury icon reminds shield users to refresh the buff.
 
 Mana, target and range are ignored. The global cooldown is ignored when the client provides enough information to distinguish it from the spell cooldown. The glow is enabled by default and can be disabled in the settings panel. LibCustomGlow-1.0 and LibStub are bundled; no separate library installation is needed.
 
 ## Install
 
-1. Extract `dist/PaladinAssistForever-0.9.0.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
+1. Extract `dist/PaladinAssistForever-0.9.1.zip` into your WoW Forever client's `Interface/AddOns` directory, or copy the repository's `PaladinAssistForever` folder there.
 2. Check the resulting path is `Interface/AddOns/PaladinAssistForever/PaladinAssistForever.toc` (no extra nested directory).
 3. Enable **Paladin Assist Forever** in the character-selection AddOns menu, then log in as a paladin. If installing while the game is running, restart the client if the addon does not appear.
 4. Put this macro on a default action bar:
@@ -20,7 +20,7 @@ Mana, target and range are ignored. The global cooldown is ignored when the clie
 
 The macro name can be anything. Keep the `#` in `#showtooltip`; do not add a backslash before it.
 
-Open `/paf config` and choose **Action bar** and **Button** in the **Holy Strike / Judgement** group. The default is **Bottom right bar → Button 3**, including when the beta loses saved settings. Existing valid saved selections are preserved. Only your selected visible button glows. It stays at that physical position when spells move or bar pages change, so update the selection if you move your macro. The addon no longer inspects macro contents for this feature. Spell lookup still uses English names. Third-party action bars, pet bars and vehicle bars are outside this version's scope.
+Open `/paf config` and choose **Action bar** and **Button** in the **Holy Strike / Judgement** group. The default is **Action Bar 3 → Button 3**, including when the beta loses saved settings. Existing valid saved selections are preserved. The selector now names bars **Action Bar 1** through **Action Bar 8** in the same physical order as before; changing the labels does not move existing selections. Only your selected visible button glows. It stays at that physical position when spells move or bar pages change, so update the selection if you move your macro. The addon no longer inspects macro contents for this feature. Spell lookup still uses English names. Third-party action bars, pet bars and vehicle bars are outside this version's scope.
 
 ## Configuration
 
@@ -28,7 +28,7 @@ Open **Settings → AddOns → Paladin Assist Forever**, or type `/paf config`.
 
 The panel has four bordered groups: **Holy Strike / Judgement**, **Seal reminder**, **Exorcism**, and **Righteous Fury**. The first three configure action-button reminders; Righteous Fury configures a floating icon. Scroll when needed; changes apply immediately and existing saved preferences are retained.
 
-- **Holy strike glow on Holy strike and judgement** is checked by default. Its default position is **Bottom right bar → Button 3**; you can change it below the checkbox.
+- **Holy strike glow on Holy strike and judgement** is checked by default. Its default position is **Action Bar 3 → Button 3**; you can change it below the checkbox.
 - **Check Holy Strike** is on by default. Uncheck it if you want only Judgement readiness to trigger the selected button.
 - **Holy Strike: Blizzard native glow** is off by default, with a teal custom color selected (`#00BFA5`). **Judgement: Blizzard native glow** is on by default. Each spell has its own color controls, and saved choices remain unchanged on upgrade.
 - Uncheck a spell's native option, then choose its color below. Judgement's appearance takes priority whenever it is ready, including when Holy Strike is also ready. For example, set Judgement to red and leave Holy Strike teal: both ready means red; only Holy Strike ready means teal.
@@ -41,7 +41,7 @@ The panel has four bordered groups: **Holy Strike / Judgement**, **Seal reminder
 
 ## Exorcism glow
 
-The **Exorcism** group has its own enable checkbox, action-bar/button selector, and native/custom color controls. It is enabled by default on **Bottom right bar → Button 5** with Blizzard's native glow. Select the physical button where you placed Exorcism if it is elsewhere.
+The **Exorcism** group has its own enable checkbox, action-bar/button selector, and native/custom color controls. It is enabled by default on **Action Bar 3 → Button 5** with Blizzard's native glow. Select the physical button where you placed Exorcism if it is elsewhere.
 
 The button glows only in combat when Exorcism is off cooldown and either your target or mouseover is a living unit you can attack whose creature type is **Demon** or **Undead**. With no living attackable target or mouseover unit, the icon keeps its normal color even while Exorcism is on cooldown. When at least one living attackable unit is present, the icon is desaturated to grayscale if the cooldown or eligible-target check fails, including outside combat; a ready spell with a valid target looks normal outside combat. This uses the action icon's `SetDesaturation` visual effect, as in GreyOnCooldown, instead of a grey overlay. It first uses the locale-independent creature type ID returned by `UnitCreatureType`, with a localized-name fallback. When dungeon identity restrictions hide creature type, it uses Exorcism's target-specific range check to distinguish a valid target from an invalid one. Both in-range and out-of-range results count as eligible; a missing or restricted result does not. The reminder still ignores actual distance and mana. No spell is cast by the addon.
 
@@ -49,7 +49,7 @@ Exorcism has its own glow owner, so disabling or moving it does not remove anoth
 
 ## Seal refresh reminder
 
-In `/paf config`, check **Enable seal reminder** (enabled by default) inside the **Seal reminder** group, then choose its **Action bar** and **Button**. The default is **Bottom right bar → Button 4**, including when saved settings are missing. Its **Glow color** defaults to red and is independent of the Holy Strike color.
+In `/paf config`, check **Enable seal reminder** (enabled by default) inside the **Seal reminder** group, then choose its **Action bar** and **Button**. The default is **Action Bar 3 → Button 4**, including when saved settings are missing. Its **Glow color** defaults to red and is independent of the Holy Strike color.
 
 - A successful player seal cast starts a timer. Seal of Command damage procs have the same spell name but do not restart it. **Remind after** defaults to **26 seconds**, configurable from 1–30 seconds. At that time the chosen button glows, giving 4 seconds before the assumed 30-second expiry with the default. Changing the setting recalculates the current timer from the last cast; casting any recognized seal resets it.
 - New glows flash once in combat. Outside combat the seal glow starts directly in its loop. Entering combat does not reflash an existing glow; leaving combat cancels any unfinished flash.
